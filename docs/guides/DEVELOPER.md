@@ -58,6 +58,14 @@ Dev-Compose (falls vorhanden):
 docker compose -f docker-compose.dev.yml up --build
 ```
 
+Release-Images (GHCR) ohne lokalen App-Build:
+
+```bash
+export KOSTENPILOT_VERSION=latest
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+CI: Bei `release: published` baut `.github/workflows/release-ghcr.yml` Backend/Frontend multi-arch nach `ghcr.io/timux/kostenpilot-*`. Manuell: Actions → *Release GHCR images* → *Run workflow*.
 ## Lokale Entwicklung
 
 ### Backend

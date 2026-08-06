@@ -48,6 +48,21 @@ Standard-Login (änderbar in `.env`): **`admin` / `admin`**
 
 Optionale Demo-Daten: `SEED_SAMPLE_DATA=true` in `.env` (Standard in `.env.example`).
 
+### Fertige Images (GHCR)
+
+Bei jedem GitHub-Release werden Backend- und Frontend-Images nach GHCR gebaut (`linux/amd64`, `linux/arm64`):
+
+- `ghcr.io/timux/kostenpilot-backend`
+- `ghcr.io/timux/kostenpilot-frontend`
+
+```bash
+cp .env.example .env
+export KOSTENPILOT_VERSION=1.0.0   # oder latest
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+Tags pro Release u. a.: `v1.0.0`, `1.0.0`, `1.0`, `latest` (kein Prerelease).
+
 ## Dokumentation
 
 | Guide | Für wen |

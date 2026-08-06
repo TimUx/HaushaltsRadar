@@ -2,6 +2,8 @@
 
 Anleitung für Betrieb, Benutzerverwaltung und Datensicherung.
 
+*Screenshots zeigen fiktive Demo-Daten.*
+
 ## Installation (Produktion / Homelab)
 
 ```bash
@@ -20,11 +22,23 @@ In `.env` mindestens setzen:
 | `CORS_ORIGINS` | Erlaubte Frontend-Origins (inkl. deiner öffentlichen URL) |
 | `SEED_SAMPLE_DATA` | `false` in Produktion, sofern keine Demo-Daten gewünscht |
 
-Start:
+Start (lokaler Build):
 
 ```bash
 docker compose up --build -d
 ```
+
+Oder mit vorgebauten Release-Images aus GHCR:
+
+```bash
+export KOSTENPILOT_VERSION=1.0.0   # ohne führendes v, oder latest
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+Images: `ghcr.io/timux/kostenpilot-backend` und `ghcr.io/timux/kostenpilot-frontend`  
+Werden automatisch gebaut, sobald ein GitHub-Release veröffentlicht wird (Workflow `.github/workflows/release-ghcr.yml`).
+
+Nach dem ersten Push sind GHCR-Packages oft **privat**. Unter GitHub → Packages → jeweiliges Package → *Package settings* → Visibility auf **Public** stellen (sonst brauchen Nutzer `docker login ghcr.io`).
 
 - Frontend: Port **3080** (Container-Port 80)
 - Backend/API: Port **8000**
@@ -33,6 +47,10 @@ docker compose up --build -d
 OpenAPI: `http://<host>:8000/docs`
 
 Reverse Proxy (nginx/Caddy/Traefik) empfohlen: TLS terminieren und Frontend + `/api` zusammenführen.
+
+Nach dem Start erreichst du die Anmeldung unter dem Frontend-Port:
+
+![Anmeldeseite](../screenshots/guides/user-login.png)
 
 ## Rollenmodell
 
@@ -52,6 +70,8 @@ Pfad: **Administration → Benutzer**
 - Optional: Benutzer mit einer **Person** verknüpfen → der User kann **Meine Finanzen** nutzen
 - Passwörter nur über die Admin-UI bzw. API setzen (kein Klartext in der DB)
 
+![Benutzerverwaltung](../screenshots/guides/admin-benutzer.png)
+
 ## Daten & Backup
 
 Pfad: **Administration → Daten & Backup**
@@ -64,10 +84,26 @@ Pfad: **Administration → Daten & Backup**
 
 Vor Import/Restore immer ein frisches Backup herunterladen. Restore ist destruktiv und erfordert Bestätigung in der UI.
 
+![Daten & Backup](../screenshots/guides/admin-backup.png)
+
 API (Admin-JWT):
 
 - `GET /api/v1/admin/export`
 - `POST /api/v1/admin/import`
+
+## Organisation vorbereiten
+
+Vor dem ersten produktiven Posten empfiehlt sich diese Reihenfolge (siehe auch [Benutzerhandbuch](USER.md)):
+
+1. **Personen** und optional **Parteien** anlegen  
+2. **Objekte** zuordnen  
+3. Benutzer mit Personen verknüpfen  
+
+![Personen](../screenshots/guides/user-personen.png)
+
+![Parteien](../screenshots/guides/user-parteien.png)
+
+![Objekte](../screenshots/guides/user-objekte.png)
 
 ## Betrieb & Wartung
 
