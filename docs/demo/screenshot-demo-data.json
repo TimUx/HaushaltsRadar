@@ -1,0 +1,1209 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-06T22:07:55.126268+00:00",
+  "app": "kostenpilot",
+  "data": {
+    "parties": [
+      {
+        "id": 1,
+        "name": "Haushalt Nord",
+        "description": "Erdgeschoss Musterstraße",
+        "is_active": true,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 2,
+        "name": "Haushalt Süd",
+        "description": "Obergeschoss Musterstraße",
+        "is_active": true,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      }
+    ],
+    "persons": [
+      {
+        "id": 1,
+        "name": "Alex Berger",
+        "color": "#2F5D8C",
+        "notes": null,
+        "party_id": 1,
+        "is_active": true,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 2,
+        "name": "Sam Berger",
+        "color": "#5B8FB9",
+        "notes": null,
+        "party_id": 1,
+        "is_active": true,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 3,
+        "name": "Kim Vogel",
+        "color": "#3D7A5A",
+        "notes": null,
+        "party_id": 2,
+        "is_active": true,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      }
+    ],
+    "objects": [
+      {
+        "id": 1,
+        "name": "Einfamilienhaus Musterstadt",
+        "description": "Musterstraße 12",
+        "party_id": null,
+        "person_id": null,
+        "is_active": true,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 2,
+        "name": "Familienwagen",
+        "description": "Kombi",
+        "party_id": 1,
+        "person_id": null,
+        "is_active": true,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 3,
+        "name": "Büro Dachgeschoss",
+        "description": "Homeoffice",
+        "party_id": 2,
+        "person_id": 3,
+        "is_active": true,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      }
+    ],
+    "categories": [
+      {
+        "id": 1,
+        "name": "Haus",
+        "sort_order": 0,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 2,
+        "name": "Versicherungen",
+        "sort_order": 1,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 3,
+        "name": "Mobilität",
+        "sort_order": 2,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 4,
+        "name": "Freizeit",
+        "sort_order": 3,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 5,
+        "name": "Gesundheit",
+        "sort_order": 4,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 6,
+        "name": "Kommunikation",
+        "sort_order": 5,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      }
+    ],
+    "tags": [
+      {
+        "id": 1,
+        "name": "Strom",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 2,
+        "name": "Wasser",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 3,
+        "name": "Müll",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 4,
+        "name": "Grundsteuer",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 5,
+        "name": "Gebäudeversicherung",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 6,
+        "name": "Haftpflicht",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 7,
+        "name": "KFZ",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 8,
+        "name": "Internet",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 9,
+        "name": "Mobilfunk",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 10,
+        "name": "Streaming",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 11,
+        "name": "Hobby",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 12,
+        "name": "PV",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 13,
+        "name": "Wartung",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 14,
+        "name": "Rechtsschutz",
+        "color": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      }
+    ],
+    "cost_items": [
+      {
+        "id": 1,
+        "name": "Haushaltsstrom",
+        "description": null,
+        "category_id": 1,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "Stadtwerke Musterstadt",
+        "amount": "132.50",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-01-01",
+        "end_date": null,
+        "due_day": 15,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          1
+        ],
+        "allocations": [
+          {
+            "id": 1,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "60.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          },
+          {
+            "id": 2,
+            "person_id": 1,
+            "party_id": null,
+            "is_household": false,
+            "percentage": "20.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          },
+          {
+            "id": 3,
+            "person_id": 2,
+            "party_id": null,
+            "is_household": false,
+            "percentage": "20.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 2,
+        "name": "Glasfaser Internet",
+        "description": null,
+        "category_id": 6,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "Netze Plus AG",
+        "amount": "44.90",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-03-01",
+        "end_date": null,
+        "due_day": 1,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          8
+        ],
+        "allocations": [
+          {
+            "id": 4,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 3,
+        "name": "Private Haftpflicht",
+        "description": null,
+        "category_id": 2,
+        "subcategory_id": null,
+        "object_id": null,
+        "contract_partner": "Versicherung Nord",
+        "amount": "96.00",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "annual",
+        "custom_interval_months": null,
+        "start_date": "2025-04-01",
+        "end_date": null,
+        "due_day": 1,
+        "due_month": 4,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          6
+        ],
+        "allocations": [
+          {
+            "id": 5,
+            "person_id": 1,
+            "party_id": null,
+            "is_household": false,
+            "percentage": "50.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          },
+          {
+            "id": 6,
+            "person_id": 2,
+            "party_id": null,
+            "is_household": false,
+            "percentage": "50.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 4,
+        "name": "Gebäudeversicherung",
+        "description": null,
+        "category_id": 2,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "HeimatSchutz AG",
+        "amount": "420.00",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "annual",
+        "custom_interval_months": null,
+        "start_date": "2025-01-01",
+        "end_date": null,
+        "due_day": 1,
+        "due_month": 1,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          5
+        ],
+        "allocations": [
+          {
+            "id": 7,
+            "person_id": null,
+            "party_id": 1,
+            "is_household": false,
+            "percentage": "55.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          },
+          {
+            "id": 8,
+            "person_id": null,
+            "party_id": 2,
+            "is_household": false,
+            "percentage": "45.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 5,
+        "name": "Grundsteuer B",
+        "description": null,
+        "category_id": 1,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "Stadt Musterstadt",
+        "amount": "286.80",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "quarterly",
+        "custom_interval_months": null,
+        "start_date": "2025-01-01",
+        "end_date": null,
+        "due_day": 15,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          4
+        ],
+        "allocations": [
+          {
+            "id": 9,
+            "person_id": null,
+            "party_id": 1,
+            "is_household": false,
+            "percentage": "50.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          },
+          {
+            "id": 10,
+            "person_id": null,
+            "party_id": 2,
+            "is_household": false,
+            "percentage": "50.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 6,
+        "name": "Abfallgebühr",
+        "description": null,
+        "category_id": 1,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "AWB Musterstadt",
+        "amount": "28.40",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-01-01",
+        "end_date": null,
+        "due_day": 5,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          3
+        ],
+        "allocations": [
+          {
+            "id": 11,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 7,
+        "name": "Wasser / Abwasser",
+        "description": null,
+        "category_id": 1,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "Stadtwerke Musterstadt",
+        "amount": "52.00",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-01-01",
+        "end_date": null,
+        "due_day": 10,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          2
+        ],
+        "allocations": [
+          {
+            "id": 12,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 8,
+        "name": "KFZ-Versicherung",
+        "description": null,
+        "category_id": 3,
+        "subcategory_id": null,
+        "object_id": 2,
+        "contract_partner": "AutoProtect",
+        "amount": "68.00",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-02-01",
+        "end_date": null,
+        "due_day": 1,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          7
+        ],
+        "allocations": [
+          {
+            "id": 13,
+            "person_id": 1,
+            "party_id": null,
+            "is_household": false,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 9,
+        "name": "Streaming Paket",
+        "description": null,
+        "category_id": 4,
+        "subcategory_id": null,
+        "object_id": null,
+        "contract_partner": "StreamWorld",
+        "amount": "17.99",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-06-01",
+        "end_date": null,
+        "due_day": 8,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          10
+        ],
+        "allocations": [
+          {
+            "id": 14,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 10,
+        "name": "Fitness Studio",
+        "description": null,
+        "category_id": 4,
+        "subcategory_id": null,
+        "object_id": null,
+        "contract_partner": "FitCity",
+        "amount": "39.90",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-05-01",
+        "end_date": null,
+        "due_day": 1,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          11
+        ],
+        "allocations": [
+          {
+            "id": 15,
+            "person_id": 2,
+            "party_id": null,
+            "is_household": false,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 11,
+        "name": "Mobilfunk Alex",
+        "description": null,
+        "category_id": 6,
+        "subcategory_id": null,
+        "object_id": null,
+        "contract_partner": "MobilPlus",
+        "amount": "19.99",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-01-01",
+        "end_date": null,
+        "due_day": 12,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          9
+        ],
+        "allocations": [
+          {
+            "id": 16,
+            "person_id": 1,
+            "party_id": null,
+            "is_household": false,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 12,
+        "name": "Mobilfunk Sam",
+        "description": null,
+        "category_id": 6,
+        "subcategory_id": null,
+        "object_id": null,
+        "contract_partner": "MobilPlus",
+        "amount": "14.99",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-01-01",
+        "end_date": null,
+        "due_day": 12,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          9
+        ],
+        "allocations": [
+          {
+            "id": 17,
+            "person_id": 2,
+            "party_id": null,
+            "is_household": false,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 13,
+        "name": "Rechtsschutz",
+        "description": null,
+        "category_id": 2,
+        "subcategory_id": null,
+        "object_id": null,
+        "contract_partner": "RechtKlar",
+        "amount": "18.50",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-07-01",
+        "end_date": null,
+        "due_day": 20,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          14
+        ],
+        "allocations": [
+          {
+            "id": 18,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 14,
+        "name": "Heizungswartung",
+        "description": null,
+        "category_id": 1,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "WärmeService",
+        "amount": "189.00",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "annual",
+        "custom_interval_months": null,
+        "start_date": "2025-09-01",
+        "end_date": null,
+        "due_day": 1,
+        "due_month": 9,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          13
+        ],
+        "allocations": [
+          {
+            "id": 19,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 15,
+        "name": "PV Einspeisevergütung",
+        "description": null,
+        "category_id": 1,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "Netzbetreiber Muster",
+        "amount": "78.00",
+        "currency": "EUR",
+        "entry_type": "income",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-06-01",
+        "end_date": null,
+        "due_day": 25,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          12
+        ],
+        "allocations": [
+          {
+            "id": 20,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 16,
+        "name": "Strom Nachzahlung",
+        "description": null,
+        "category_id": 1,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "Stadtwerke Musterstadt",
+        "amount": "214.60",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "one_time",
+        "custom_interval_months": null,
+        "start_date": "2026-03-12",
+        "end_date": null,
+        "due_day": null,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          1
+        ],
+        "allocations": [
+          {
+            "id": 21,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 17,
+        "name": "Wasser Gutschrift",
+        "description": null,
+        "category_id": 1,
+        "subcategory_id": null,
+        "object_id": 1,
+        "contract_partner": "Stadtwerke Musterstadt",
+        "amount": "36.80",
+        "currency": "EUR",
+        "entry_type": "income",
+        "payment_interval": "one_time",
+        "custom_interval_months": null,
+        "start_date": "2026-04-08",
+        "end_date": null,
+        "due_day": null,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [
+          2
+        ],
+        "allocations": [
+          {
+            "id": 22,
+            "person_id": null,
+            "party_id": null,
+            "is_household": true,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 18,
+        "name": "Büromiete Dachgeschoss",
+        "description": null,
+        "category_id": 1,
+        "subcategory_id": null,
+        "object_id": 3,
+        "contract_partner": "Hausverwaltung Vogel",
+        "amount": "120.00",
+        "currency": "EUR",
+        "entry_type": "expense",
+        "payment_interval": "monthly",
+        "custom_interval_months": null,
+        "start_date": "2025-08-01",
+        "end_date": null,
+        "due_day": 1,
+        "due_month": null,
+        "notes": null,
+        "is_active": true,
+        "tag_ids": [],
+        "allocations": [
+          {
+            "id": 23,
+            "person_id": 3,
+            "party_id": null,
+            "is_household": false,
+            "percentage": "100.00",
+            "created_at": "2026-08-06T22:07:55.126268+00:00",
+            "updated_at": "2026-08-06T22:07:55.126268+00:00"
+          }
+        ],
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      }
+    ],
+    "contracts": [
+      {
+        "id": 1,
+        "cost_item_id": 1,
+        "provider": "Stadtwerke Musterstadt",
+        "contract_number": "SW-2025-4412",
+        "start_date": "2025-01-01",
+        "end_date": null,
+        "notice_period_days": 90,
+        "auto_renewal": true,
+        "notes": "Demo-Vertrag",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 2,
+        "cost_item_id": 2,
+        "provider": "Netze Plus AG",
+        "contract_number": "NP-77821",
+        "start_date": "2025-03-01",
+        "end_date": null,
+        "notice_period_days": 30,
+        "auto_renewal": true,
+        "notes": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      }
+    ],
+    "price_history": [
+      {
+        "id": 1,
+        "cost_item_id": 1,
+        "amount": "132.50",
+        "monthly_amount": "132.50",
+        "valid_from": "2025-01-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 2,
+        "cost_item_id": 2,
+        "amount": "44.90",
+        "monthly_amount": "44.90",
+        "valid_from": "2025-03-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 3,
+        "cost_item_id": 3,
+        "amount": "96.00",
+        "monthly_amount": "8.00",
+        "valid_from": "2025-04-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 4,
+        "cost_item_id": 4,
+        "amount": "420.00",
+        "monthly_amount": "35.00",
+        "valid_from": "2025-01-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 5,
+        "cost_item_id": 5,
+        "amount": "286.80",
+        "monthly_amount": "95.60",
+        "valid_from": "2025-01-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 6,
+        "cost_item_id": 6,
+        "amount": "28.40",
+        "monthly_amount": "28.40",
+        "valid_from": "2025-01-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 7,
+        "cost_item_id": 7,
+        "amount": "52.00",
+        "monthly_amount": "52.00",
+        "valid_from": "2025-01-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 8,
+        "cost_item_id": 8,
+        "amount": "68.00",
+        "monthly_amount": "68.00",
+        "valid_from": "2025-02-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 9,
+        "cost_item_id": 9,
+        "amount": "17.99",
+        "monthly_amount": "17.99",
+        "valid_from": "2025-06-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 10,
+        "cost_item_id": 10,
+        "amount": "39.90",
+        "monthly_amount": "39.90",
+        "valid_from": "2025-05-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 11,
+        "cost_item_id": 11,
+        "amount": "19.99",
+        "monthly_amount": "19.99",
+        "valid_from": "2025-01-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 12,
+        "cost_item_id": 12,
+        "amount": "14.99",
+        "monthly_amount": "14.99",
+        "valid_from": "2025-01-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 13,
+        "cost_item_id": 13,
+        "amount": "18.50",
+        "monthly_amount": "18.50",
+        "valid_from": "2025-07-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 14,
+        "cost_item_id": 14,
+        "amount": "189.00",
+        "monthly_amount": "15.75",
+        "valid_from": "2025-09-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 15,
+        "cost_item_id": 15,
+        "amount": "78.00",
+        "monthly_amount": "78.00",
+        "valid_from": "2025-06-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 16,
+        "cost_item_id": 16,
+        "amount": "214.60",
+        "monthly_amount": "0.00",
+        "valid_from": "2026-03-12",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 17,
+        "cost_item_id": 17,
+        "amount": "36.80",
+        "monthly_amount": "0.00",
+        "valid_from": "2026-04-08",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 18,
+        "cost_item_id": 18,
+        "amount": "120.00",
+        "monthly_amount": "120.00",
+        "valid_from": "2025-08-01",
+        "event_type": "created",
+        "notes": "Demo-Start",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 19,
+        "cost_item_id": 1,
+        "amount": "118.00",
+        "monthly_amount": "118.00",
+        "valid_from": "2025-01-01",
+        "event_type": "created",
+        "notes": "Vertragsstart",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 20,
+        "cost_item_id": 1,
+        "amount": "132.50",
+        "monthly_amount": "132.50",
+        "valid_from": "2026-01-01",
+        "event_type": "changed",
+        "notes": "Preisanpassung Demo",
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      }
+    ],
+    "document_links": [],
+    "users": [
+      {
+        "id": 1,
+        "username": "admin",
+        "password_hash": "$2b$12$3BS4lLX11utdO2aDsF7wDO907r8n3pj40FvUY.//IRyZg3elrrIRe",
+        "role": "admin",
+        "is_active": true,
+        "person_id": 1,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 2,
+        "username": "demo",
+        "password_hash": "$2b$12$wIH4/MrGa5V3ez4mSUnfOey1EQbprznhueJwdIGSypt0iamLlrDeO",
+        "role": "user",
+        "is_active": true,
+        "person_id": 2,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      },
+      {
+        "id": 3,
+        "username": "gast",
+        "password_hash": "$2b$12$wIH4/MrGa5V3ez4mSUnfOey1EQbprznhueJwdIGSypt0iamLlrDeO",
+        "role": "viewer",
+        "is_active": true,
+        "person_id": null,
+        "created_at": "2026-08-06T22:07:55.126268+00:00",
+        "updated_at": "2026-08-06T22:07:55.126268+00:00"
+      }
+    ]
+  }
+}
