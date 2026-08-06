@@ -1,7 +1,5 @@
 # HaushaltsRadar
 
-> Zuvor **KostenPilot** – Repo, Images und UI wurden nach HaushaltsRadar umbenannt. Alte JSON-Backups mit `"app": "kostenpilot"` lassen sich weiterhin importieren.
-
 Selbst gehostete Web-App für **Fixkosten, Verträge und wiederkehrende Ausgaben** im Haushalt – inklusive Einnahmen, Analysen und Periodenberichten.
 
 HaushaltsRadar ist **kein** klassisches Haushaltsbuch und **keine** Banking-Software. Es modelliert Fixkosten, Abos, Versicherungen und ähnliche Positionen, verteilt sie auf Personen/Parteien und macht sie über Dashboards und Diagramme nachvollziehbar.

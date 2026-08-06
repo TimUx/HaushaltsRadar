@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from calendar import monthrange
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy.orm import Session, joinedload
@@ -189,19 +189,26 @@ def _active_monthly_on(
     if item.end_date and _month_start(item.end_date) < month:
         return Decimal("0.00")
 
-    applicable = None
+    # Latest history entry that already applies this month, plus the first
+    # later entry (used to carry recurring amounts into earlier months).
+    applicable: PriceHistory | None = None
+    first_later: PriceHistory | None = None
     for entry in history:
-        if entry.valid_from <= _add_months(month, 1) - timedelta(days=1):
-            if _month_start(entry.valid_from) <= month:
-                applicable = entry
+        if _month_start(entry.valid_from) <= month:
+            applicable = entry
         else:
+            first_later = entry
             break
 
     if applicable is None:
+        # No history covers this month yet. Carry the earliest known amount
+        # backward into the active period so late bookkeeping (created_at /
+        # first valid_from mid-year) does not blank Jan–May etc.
+        if first_later is not None:
+            if first_later.event_type == CostHistoryEvent.ended:
+                return Decimal("0.00")
+            return (Decimal(first_later.monthly_amount) * sign).quantize(Decimal("0.01"))
         if not item.is_active:
-            return Decimal("0.00")
-        created = item.created_at.date() if item.created_at else date.today()
-        if _month_start(created) > month:
             return Decimal("0.00")
         return (monthly_amount(item) * sign).quantize(Decimal("0.01"))
 
