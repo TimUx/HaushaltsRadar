@@ -22,7 +22,7 @@ def login(
     db: Session = Depends(get_db),
 ) -> TokenResponse:
     user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not user.is_active or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Benutzername oder Passwort ungültig",
@@ -36,7 +36,7 @@ def login(
 @router.post("/login/json", response_model=TokenResponse)
 def login_json(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     user = db.query(User).filter(User.username == payload.username).first()
-    if not user or not verify_password(payload.password, user.password_hash):
+    if not user or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Benutzername oder Passwort ungültig",

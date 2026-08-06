@@ -1,9 +1,14 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { Box, CircularProgress } from '@mui/material'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from './AuthContext'
+import type { UserRole } from '../api/types'
 
-export function ProtectedRoute() {
-  const { isAuthenticated, loading } = useAuth()
+interface ProtectedRouteProps {
+  roles?: UserRole[]
+}
+
+export function ProtectedRoute({ roles }: ProtectedRouteProps) {
+  const { isAuthenticated, loading, user } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -16,6 +21,10 @@ export function ProtectedRoute() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
+  if (roles && user && !roles.includes(user.role)) {
+    return <Navigate to="/" replace />
   }
 
   return <Outlet />

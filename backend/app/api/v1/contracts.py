@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import require_editor
 from app.db.session import get_db
 from app.models import Contract, CostItem, DocumentLink, PriceHistory, User
 from app.schemas import (
@@ -21,7 +21,7 @@ router = APIRouter(tags=["Verträge"])
 @router.get("/contracts", response_model=list[ContractRead])
 def list_contracts(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> list[Contract]:
     return db.query(Contract).order_by(Contract.provider).all()
 
@@ -30,7 +30,7 @@ def list_contracts(
 def create_contract(
     payload: ContractCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> Contract:
     if not db.get(CostItem, payload.cost_item_id):
         raise HTTPException(status_code=400, detail="Kostenposition nicht gefunden")
@@ -48,7 +48,7 @@ def create_contract(
 def get_contract(
     contract_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> Contract:
     contract = db.get(Contract, contract_id)
     if not contract:
@@ -61,7 +61,7 @@ def update_contract(
     contract_id: int,
     payload: ContractUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> Contract:
     contract = db.get(Contract, contract_id)
     if not contract:
@@ -77,7 +77,7 @@ def update_contract(
 def delete_contract(
     contract_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> None:
     contract = db.get(Contract, contract_id)
     if not contract:
@@ -90,7 +90,7 @@ def delete_contract(
 def list_price_history(
     cost_item_id: int | None = None,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> list[PriceHistory]:
     query = db.query(PriceHistory)
     if cost_item_id is not None:
@@ -102,11 +102,22 @@ def list_price_history(
 def create_price_history(
     payload: PriceHistoryCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> PriceHistory:
-    if not db.get(CostItem, payload.cost_item_id):
+    item = db.get(CostItem, payload.cost_item_id)
+    if not item:
         raise HTTPException(status_code=400, detail="Kostenposition nicht gefunden")
-    entry = PriceHistory(**payload.model_dump())
+    data = payload.model_dump()
+    if not data.get("monthly_amount"):
+        # Approximate monthly from current interval using provided amount.
+        from app.services.amounts import INTERVAL_TO_MONTHS
+        from decimal import Decimal
+
+        months = INTERVAL_TO_MONTHS.get(item.payment_interval, Decimal("1"))
+        if item.payment_interval.value == "custom":
+            months = Decimal(item.custom_interval_months or 1)
+        data["monthly_amount"] = (Decimal(data["amount"]) / months).quantize(Decimal("0.01"))
+    entry = PriceHistory(**data)
     db.add(entry)
     db.commit()
     db.refresh(entry)
@@ -117,7 +128,7 @@ def create_price_history(
 def list_document_links(
     cost_item_id: int | None = None,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> list[DocumentLink]:
     query = db.query(DocumentLink)
     if cost_item_id is not None:
@@ -129,7 +140,7 @@ def list_document_links(
 def create_document_link(
     payload: DocumentLinkCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> DocumentLink:
     if not db.get(CostItem, payload.cost_item_id):
         raise HTTPException(status_code=400, detail="Kostenposition nicht gefunden")
@@ -145,7 +156,7 @@ def update_document_link(
     link_id: int,
     payload: DocumentLinkUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> DocumentLink:
     link = db.get(DocumentLink, link_id)
     if not link:
@@ -161,7 +172,7 @@ def update_document_link(
 def delete_document_link(
     link_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> None:
     link = db.get(DocumentLink, link_id)
     if not link:

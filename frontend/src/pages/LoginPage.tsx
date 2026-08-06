@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link as RouterLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -47,7 +47,8 @@ export function LoginPage() {
           <Stack spacing={2} component="form" onSubmit={onSubmit}>
             <Typography variant="h5">Anmelden</Typography>
             <Typography color="text.secondary" variant="body2">
-              Verwaltung und Details erfordern eine Anmeldung. Das Dashboard bleibt öffentlich.
+              Für Dashboard, Struktur, Kostenübersicht und Historie ist mindestens ein
+              Lese-Zugang erforderlich.
             </Typography>
             {error && <Alert severity="error">{error}</Alert>}
             <TextField
@@ -69,9 +70,6 @@ export function LoginPage() {
             />
             <Button type="submit" variant="contained" disabled={submitting}>
               {submitting ? 'Anmeldung…' : 'Anmelden'}
-            </Button>
-            <Button component={RouterLink} to="/">
-              Zurück zum Dashboard
             </Button>
           </Stack>
         </CardContent>

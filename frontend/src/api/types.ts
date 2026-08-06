@@ -35,10 +35,51 @@ export interface DashboardSummary {
   upcoming_dues: UpcomingDue[]
 }
 
+export interface CostHistoryPoint {
+  month: string
+  date: string
+  monthly_total: string | number
+  is_forecast: boolean
+}
+
+export interface CostHistoryEvent {
+  date: string
+  cost_item_id: number
+  cost_item_name: string
+  event_type: 'created' | 'changed' | 'ended' | 'reactivated' | string
+  amount: string | number
+  monthly_amount: string | number
+  notes?: string | null
+}
+
+export interface CostHistorySummary {
+  current_monthly: string | number
+  start_monthly: string | number
+  change_monthly: string | number
+  change_percent: string | number
+  active_items: number
+  months_back: number
+  forecast_months: number
+}
+
+export interface CostHistoryResponse {
+  series: CostHistoryPoint[]
+  events: CostHistoryEvent[]
+  summary: CostHistorySummary
+}
+
+export type UserRole = 'admin' | 'user' | 'viewer'
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Administrator',
+  user: 'Benutzer',
+  viewer: 'Nur Lesen',
+}
+
 export interface User {
   id: number
   username: string
-  is_admin: boolean
+  role: UserRole
   is_active: boolean
 }
 
@@ -67,18 +108,16 @@ export interface ObjectEntity {
   is_active: boolean
 }
 
-export interface Subcategory {
-  id: number
-  category_id: number
-  name: string
-  sort_order: number
-}
-
 export interface Category {
   id: number
   name: string
   sort_order: number
-  subcategories: Subcategory[]
+}
+
+export interface Tag {
+  id: number
+  name: string
+  color?: string | null
 }
 
 export interface CostAllocation {
@@ -94,7 +133,6 @@ export interface CostItem {
   name: string
   description?: string | null
   category_id: number
-  subcategory_id?: number | null
   object_id?: number | null
   contract_partner?: string | null
   amount: string | number
@@ -107,6 +145,7 @@ export interface CostItem {
   due_month?: number | null
   notes?: string | null
   is_active: boolean
+  tags: Tag[]
   allocations: CostAllocation[]
   monthly_amount: string | number
   yearly_amount: string | number
@@ -129,7 +168,9 @@ export interface CostOverviewRow {
   name: string
   description?: string | null
   category?: string | null
-  subcategory?: string | null
+  category_id?: number | null
+  tags?: string | null
+  tag_ids?: number[]
   object?: string | null
   object_party?: string | null
   object_person?: string | null

@@ -4,40 +4,55 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.security import hash_password
-from app.models import Category, Subcategory, User
+from app.models import Category, Tag, User, UserRole
 
-DEFAULT_CATEGORIES: list[tuple[str, list[str]]] = [
-    (
-        "Haus",
-        [
-            "Strom",
-            "Wasser",
-            "Abwasser",
-            "Müll",
-            "Grundsteuer",
-            "Gemeindeabgaben",
-            "Gebäudeversicherung",
-            "Wartung",
-        ],
-    ),
-    ("Versicherungen", ["Haftpflicht", "Zahnzusatz", "KFZ", "Rechtsschutz", "Sonstige"]),
-    ("Mobilität", ["Auto", "Motorrad", "Tankkosten", "Versicherung"]),
-    ("Freizeit", ["Vereine", "Streaming", "Hobby"]),
-    ("Gesundheit", ["Zusatzversicherungen", "Medikamente"]),
-    ("Kommunikation", ["Internet", "Mobilfunk"]),
+DEFAULT_CATEGORIES: list[str] = [
+    "Haus",
+    "Versicherungen",
+    "Mobilität",
+    "Freizeit",
+    "Gesundheit",
+    "Kommunikation",
+]
+
+DEFAULT_TAGS: list[str] = [
+    "Strom",
+    "Wasser",
+    "Abwasser",
+    "Müll",
+    "Grundsteuer",
+    "Gemeindeabgaben",
+    "Gebäudeversicherung",
+    "Wartung",
+    "Haftpflicht",
+    "Zahnzusatz",
+    "KFZ",
+    "Rechtsschutz",
+    "Auto",
+    "Motorrad",
+    "Tankkosten",
+    "Vereine",
+    "Streaming",
+    "Hobby",
+    "Zusatzversicherungen",
+    "Medikamente",
+    "Internet",
+    "Mobilfunk",
 ]
 
 
 def seed_categories(db: Session) -> None:
-    if db.query(Category).count() > 0:
-        return
-    for sort_order, (name, subs) in enumerate(DEFAULT_CATEGORIES):
-        category = Category(name=name, sort_order=sort_order)
-        db.add(category)
-        db.flush()
-        for sub_order, sub_name in enumerate(subs):
-            db.add(Subcategory(category_id=category.id, name=sub_name, sort_order=sub_order))
-    db.commit()
+    if db.query(Category).count() == 0:
+        for sort_order, name in enumerate(DEFAULT_CATEGORIES):
+            db.add(Category(name=name, sort_order=sort_order))
+        db.commit()
+
+    existing_tags = {t.name for t in db.query(Tag).all()}
+    missing = [name for name in DEFAULT_TAGS if name not in existing_tags]
+    if missing:
+        for name in missing:
+            db.add(Tag(name=name))
+        db.commit()
 
 
 def ensure_bootstrap_admin(db: Session) -> None:
@@ -48,7 +63,7 @@ def ensure_bootstrap_admin(db: Session) -> None:
     user = User(
         username=settings.bootstrap_admin_username,
         password_hash=hash_password(settings.bootstrap_admin_password),
-        is_admin=True,
+        role=UserRole.admin,
         is_active=True,
     )
     db.add(user)

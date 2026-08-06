@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import require_editor
 from app.db.session import get_db
 from app.models import Party, User
 from app.repositories.base import BaseRepository
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/parties", tags=["Parteien"])
 @router.get("", response_model=list[PartyRead])
 def list_parties(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> list[Party]:
     return BaseRepository(db, Party).list(limit=500)
 
@@ -22,7 +22,7 @@ def list_parties(
 def create_party(
     payload: PartyCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> Party:
     return BaseRepository(db, Party).add(Party(**payload.model_dump()))
 
@@ -31,7 +31,7 @@ def create_party(
 def get_party(
     party_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> Party:
     party = BaseRepository(db, Party).get(party_id)
     if not party:
@@ -44,7 +44,7 @@ def update_party(
     party_id: int,
     payload: PartyUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> Party:
     repo = BaseRepository(db, Party)
     party = repo.get(party_id)
@@ -59,7 +59,7 @@ def update_party(
 def delete_party(
     party_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> None:
     repo = BaseRepository(db, Party)
     party = repo.get(party_id)

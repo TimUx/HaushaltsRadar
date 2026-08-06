@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import require_editor
 from app.db.session import get_db
 from app.models import ObjectEntity, User
 from app.repositories.base import BaseRepository
@@ -21,7 +21,7 @@ def _validate_object_assignment(party_id: int | None, person_id: int | None) -> 
 @router.get("", response_model=list[ObjectRead])
 def list_objects(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> list[ObjectEntity]:
     return BaseRepository(db, ObjectEntity).list(limit=500)
 
@@ -30,7 +30,7 @@ def list_objects(
 def create_object(
     payload: ObjectCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> ObjectEntity:
     _validate_object_assignment(payload.party_id, payload.person_id)
     return BaseRepository(db, ObjectEntity).add(ObjectEntity(**payload.model_dump()))
@@ -40,7 +40,7 @@ def create_object(
 def get_object(
     object_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> ObjectEntity:
     entity = BaseRepository(db, ObjectEntity).get(object_id)
     if not entity:
@@ -53,7 +53,7 @@ def update_object(
     object_id: int,
     payload: ObjectUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> ObjectEntity:
     repo = BaseRepository(db, ObjectEntity)
     entity = repo.get(object_id)
@@ -72,7 +72,7 @@ def update_object(
 def delete_object(
     object_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> None:
     repo = BaseRepository(db, ObjectEntity)
     entity = repo.get(object_id)

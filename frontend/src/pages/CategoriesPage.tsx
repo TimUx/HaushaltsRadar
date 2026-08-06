@@ -4,20 +4,22 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/EditOutlined'
-import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import { categoriesApi } from '../api'
 import type { Category } from '../api/types'
 
@@ -30,12 +32,9 @@ export function CategoriesPage() {
 
   const [editOpen, setEditOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
-  const [subOpen, setSubOpen] = useState(false)
   const [editing, setEditing] = useState<Category | null>(null)
   const [name, setName] = useState('')
   const [sortOrder, setSortOrder] = useState('0')
-  const [subName, setSubName] = useState('')
-  const [parentId, setParentId] = useState<number | null>(null)
 
   const updateMutation = useMutation({
     mutationFn: () =>
@@ -47,6 +46,7 @@ export function CategoriesPage() {
       setEditOpen(false)
       setEditing(null)
       await queryClient.invalidateQueries({ queryKey: ['categories'] })
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-filter-options'] })
     },
   })
 
@@ -55,23 +55,21 @@ export function CategoriesPage() {
       categoriesApi.create({
         name,
         sort_order: Number(sortOrder),
-        subcategories: [],
       }),
     onSuccess: async () => {
       setCreateOpen(false)
       setName('')
       setSortOrder('0')
       await queryClient.invalidateQueries({ queryKey: ['categories'] })
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-filter-options'] })
     },
   })
 
-  const createSubMutation = useMutation({
-    mutationFn: () => categoriesApi.createSubcategory(parentId!, { name: subName, sort_order: 0 }),
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => categoriesApi.remove(id),
     onSuccess: async () => {
-      setSubOpen(false)
-      setSubName('')
-      setParentId(null)
       await queryClient.invalidateQueries({ queryKey: ['categories'] })
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-filter-options'] })
     },
   })
 
@@ -88,76 +86,65 @@ export function CategoriesPage() {
     setCreateOpen(true)
   }
 
-  function openSub(category: Category) {
-    setParentId(category.id)
-    setSubName('')
-    setSubOpen(true)
-  }
-
-  function onEditSubmit(event: FormEvent) {
-    event.preventDefault()
-    updateMutation.mutate()
-  }
-
-  function onCreateSubmit(event: FormEvent) {
-    event.preventDefault()
-    createMutation.mutate()
-  }
-
-  function onSubSubmit(event: FormEvent) {
-    event.preventDefault()
-    createSubMutation.mutate()
-  }
-
   return (
     <Stack spacing={2}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Standardkategorien werden beim Start automatisch angelegt.
+          Eine Hauptkategorie je Kostenposition. Feinere Labels pflegen Sie unter Tags.
         </Typography>
         <Button variant="contained" onClick={openCreate} sx={{ flexShrink: 0 }}>
           Kategorie hinzufügen
         </Button>
       </Box>
       {error && <Alert severity="error">Kategorien konnten nicht geladen werden.</Alert>}
-      {(updateMutation.error || createMutation.error || createSubMutation.error) && (
+      {(updateMutation.error || createMutation.error || deleteMutation.error) && (
         <Alert severity="error">
           {(
-            (updateMutation.error || createMutation.error || createSubMutation.error) as Error
+            (updateMutation.error || createMutation.error || deleteMutation.error) as Error
           ).message}
         </Alert>
       )}
-      {isLoading && <Typography color="text.secondary">Laden…</Typography>}
-      {data.map((category) => (
-        <Card key={category.id}>
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Typography variant="h6">{category.name}</Typography>
-              <Box>
-                <IconButton aria-label="Unterkategorie" onClick={() => openSub(category)} size="small">
-                  <AddIcon fontSize="small" />
-                </IconButton>
-                <IconButton aria-label="Bearbeiten" onClick={() => openEdit(category)} size="small">
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {category.subcategories.map((sub) => (
-                <Chip key={sub.id} label={sub.name} variant="outlined" size="small" />
-              ))}
-              {category.subcategories.length === 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  Keine Unterkategorien
-                </Typography>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
-      ))}
+      {isLoading ? (
+        <Typography color="text.secondary">Laden…</Typography>
+      ) : (
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Sortierung</TableCell>
+              <TableCell align="right">Aktionen</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {data.map((category) => (
+              <TableRow key={category.id}>
+                <TableCell>{category.name}</TableCell>
+                <TableCell>{category.sort_order}</TableCell>
+                <TableCell align="right">
+                  <IconButton aria-label="Bearbeiten" onClick={() => openEdit(category)} size="small">
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    aria-label="Löschen"
+                    onClick={() => deleteMutation.mutate(category.id)}
+                    size="small"
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
 
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
-        <form onSubmit={onEditSubmit}>
+        <form
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault()
+            updateMutation.mutate()
+          }}
+        >
           <DialogTitle>Kategorie bearbeiten</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
@@ -187,7 +174,12 @@ export function CategoriesPage() {
       </Dialog>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="xs">
-        <form onSubmit={onCreateSubmit}>
+        <form
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault()
+            createMutation.mutate()
+          }}
+        >
           <DialogTitle>Neue Kategorie</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
@@ -210,29 +202,6 @@ export function CategoriesPage() {
           <DialogActions>
             <Button onClick={() => setCreateOpen(false)}>Abbrechen</Button>
             <Button type="submit" variant="contained" disabled={createMutation.isPending}>
-              Speichern
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
-
-      <Dialog open={subOpen} onClose={() => setSubOpen(false)} fullWidth maxWidth="xs">
-        <form onSubmit={onSubSubmit}>
-          <DialogTitle>Unterkategorie hinzufügen</DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Name"
-              required
-              fullWidth
-              value={subName}
-              onChange={(e) => setSubName(e.target.value)}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setSubOpen(false)}>Abbrechen</Button>
-            <Button type="submit" variant="contained" disabled={createSubMutation.isPending}>
               Speichern
             </Button>
           </DialogActions>

@@ -59,6 +59,8 @@ export function DashboardPage() {
   const theme = useTheme()
   const [objectId, setObjectId] = useState<number | ''>('')
   const [shareFilter, setShareFilter] = useState<ShareFilter>('')
+  const [categoryId, setCategoryId] = useState<number | ''>('')
+  const [tagId, setTagId] = useState<number | ''>('')
 
   const filters = useMemo(() => {
     const base = {
@@ -66,12 +68,14 @@ export function DashboardPage() {
       personId: null as number | null,
       partyId: null as number | null,
       household: false,
+      categoryId: categoryId === '' ? null : categoryId,
+      tagId: tagId === '' ? null : tagId,
     }
     if (shareFilter === 'household') base.household = true
     else if (shareFilter.startsWith('person:')) base.personId = Number(shareFilter.slice(7))
     else if (shareFilter.startsWith('party:')) base.partyId = Number(shareFilter.slice(6))
     return base
-  }, [objectId, shareFilter])
+  }, [objectId, shareFilter, categoryId, tagId])
 
   const { data: filterOptions } = useQuery({
     queryKey: ['dashboard-filter-options'],
@@ -83,13 +87,27 @@ export function DashboardPage() {
     queryFn: () => analyticsApi.dashboard(filters),
   })
 
-  const hasFilter = filters.objectId != null || filters.personId != null || filters.partyId != null || filters.household
+  const hasFilter =
+    filters.objectId != null ||
+    filters.personId != null ||
+    filters.partyId != null ||
+    filters.household ||
+    filters.categoryId != null ||
+    filters.tagId != null
 
   const filterHint = useMemo(() => {
     const parts: string[] = []
     if (filters.objectId != null) {
       const name = filterOptions?.objects.find((o) => o.id === filters.objectId)?.name
       if (name) parts.push(name)
+    }
+    if (filters.categoryId != null) {
+      const name = filterOptions?.categories.find((c) => c.id === filters.categoryId)?.name
+      if (name) parts.push(name)
+    }
+    if (filters.tagId != null) {
+      const name = filterOptions?.tags.find((t) => t.id === filters.tagId)?.name
+      if (name) parts.push(`Tag: ${name}`)
     }
     if (filters.household) parts.push('Haushalt')
     if (filters.personId != null) {
@@ -108,6 +126,14 @@ export function DashboardPage() {
       filters.objectId != null
         ? filterOptions?.objects.find((o) => o.id === filters.objectId)?.name ?? null
         : null
+    const categoryName =
+      filters.categoryId != null
+        ? filterOptions?.categories.find((c) => c.id === filters.categoryId)?.name ?? null
+        : null
+    const tagName =
+      filters.tagId != null
+        ? filterOptions?.tags.find((t) => t.id === filters.tagId)?.name ?? null
+        : null
     let shareLabel: string | null = null
     if (filters.household) shareLabel = 'Haushalt'
     else if (filters.personId != null) {
@@ -117,7 +143,7 @@ export function DashboardPage() {
       shareLabel =
         filterOptions?.parties.find((p) => p.id === filters.partyId)?.name ?? null
     }
-    return { objectName, shareLabel }
+    return { objectName, shareLabel, categoryName, tagName }
   }, [filters, filterOptions])
 
   function handleExportPdf() {
@@ -251,6 +277,42 @@ export function DashboardPage() {
           </Select>
         </FormControl>
         <FormControl size="small" sx={selectSx}>
+          <InputLabel>Kategorie</InputLabel>
+          <Select
+            label="Kategorie"
+            value={categoryId === '' ? '' : String(categoryId)}
+            onChange={(e) => {
+              const value = e.target.value
+              setCategoryId(value === '' ? '' : Number(value))
+            }}
+          >
+            <MenuItem value="">Alle</MenuItem>
+            {(filterOptions?.categories || []).map((cat) => (
+              <MenuItem key={cat.id} value={String(cat.id)}>
+                {cat.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={selectSx}>
+          <InputLabel>Tag</InputLabel>
+          <Select
+            label="Tag"
+            value={tagId === '' ? '' : String(tagId)}
+            onChange={(e) => {
+              const value = e.target.value
+              setTagId(value === '' ? '' : Number(value))
+            }}
+          >
+            <MenuItem value="">Alle</MenuItem>
+            {(filterOptions?.tags || []).map((tag) => (
+              <MenuItem key={tag.id} value={String(tag.id)}>
+                {tag.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={selectSx}>
           <InputLabel>Anteil</InputLabel>
           <Select
             label="Anteil"
@@ -277,6 +339,8 @@ export function DashboardPage() {
             onClick={() => {
               setObjectId('')
               setShareFilter('')
+              setCategoryId('')
+              setTagId('')
             }}
           >
             Zurücksetzen

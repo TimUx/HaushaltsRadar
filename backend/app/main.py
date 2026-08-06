@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.db.schema import ensure_schema
 from app.db.session import SessionLocal, engine
 from app.services.bootstrap import ensure_bootstrap_admin, seed_categories
+from app.services.cost_history import backfill_missing_history
 from app.services.sample_data import seed_sample_data
 import app.models  # noqa: F401
 
@@ -29,6 +30,7 @@ def create_app(*, run_bootstrap: bool = True) -> FastAPI:
                 ensure_bootstrap_admin(db)
                 if settings.seed_sample_data:
                     seed_sample_data(db)
+                backfill_missing_history(db)
             finally:
                 db.close()
         yield

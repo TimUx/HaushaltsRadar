@@ -9,13 +9,16 @@ import { createAppTheme } from './theme'
 import { DashboardPage } from './pages/DashboardPage'
 import { StructurePage } from './pages/StructurePage'
 import { CostsOverviewPage } from './pages/CostsOverviewPage'
+import { HistoryPage } from './pages/HistoryPage'
 import { LoginPage } from './pages/LoginPage'
 import { PersonsPage } from './pages/PersonsPage'
 import { PartiesPage } from './pages/PartiesPage'
 import { ObjectsPage } from './pages/ObjectsPage'
 import { CategoriesPage } from './pages/CategoriesPage'
+import { TagsPage } from './pages/TagsPage'
 import { CostItemsPage } from './pages/CostItemsPage'
 import { ContractsPage } from './pages/ContractsPage'
+import { UsersPage } from './pages/UsersPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,17 +51,24 @@ function ThemedApp() {
         <BrowserRouter>
           <Routes>
             <Route element={<AppLayout mode={mode} onToggleMode={toggleMode} />}>
-              <Route index element={<DashboardPage />} />
-              <Route path="struktur" element={<StructurePage />} />
-              <Route path="kostenuebersicht" element={<CostsOverviewPage />} />
               <Route path="login" element={<LoginPage />} />
-              <Route element={<ProtectedRoute />}>
+              <Route element={<ProtectedRoute roles={['admin', 'user', 'viewer']} />}>
+                <Route index element={<DashboardPage />} />
+                <Route path="struktur" element={<StructurePage />} />
+                <Route path="kostenuebersicht" element={<CostsOverviewPage />} />
+                <Route path="historie" element={<HistoryPage />} />
+              </Route>
+              <Route element={<ProtectedRoute roles={['admin', 'user']} />}>
                 <Route path="kosten" element={<CostItemsPage />} />
                 <Route path="vertraege" element={<ContractsPage />} />
                 <Route path="personen" element={<PersonsPage />} />
                 <Route path="parteien" element={<PartiesPage />} />
                 <Route path="objekte" element={<ObjectsPage />} />
                 <Route path="kategorien" element={<CategoriesPage />} />
+                <Route path="tags" element={<TagsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute roles={['admin']} />}>
+                <Route path="benutzer" element={<UsersPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

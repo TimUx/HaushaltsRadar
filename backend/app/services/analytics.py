@@ -3,7 +3,17 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Contract, CostAllocation, CostItem, ObjectEntity, Party, PaymentInterval, Person
+from app.models import (
+    Category,
+    Contract,
+    CostAllocation,
+    CostItem,
+    ObjectEntity,
+    Party,
+    PaymentInterval,
+    Person,
+    Tag,
+)
 from app.schemas import DashboardSummary, NamedAmount, UpcomingDue
 from app.services.amounts import monthly_amount, yearly_amount
 from app.services.due_dates import format_due_label, next_due_sort_key
@@ -38,6 +48,8 @@ class AnalyticsService:
             .order_by(ObjectEntity.name)
             .all()
         )
+        categories = self.db.query(Category).order_by(Category.sort_order, Category.name).all()
+        tags = self.db.query(Tag).order_by(Tag.name).all()
         return {
             "persons": [
                 {"id": p.id, "name": p.name, "party_id": p.party_id} for p in persons
@@ -52,6 +64,8 @@ class AnalyticsService:
                 }
                 for o in objects
             ],
+            "categories": [{"id": c.id, "name": c.name} for c in categories],
+            "tags": [{"id": t.id, "name": t.name} for t in tags],
         }
 
     def _person_objects(self, person_id: int, objects: list[ObjectEntity]) -> list[dict]:
@@ -134,7 +148,7 @@ class AnalyticsService:
                 joinedload(CostItem.allocations).joinedload(CostAllocation.person),
                 joinedload(CostItem.allocations).joinedload(CostAllocation.party),
                 joinedload(CostItem.category),
-                joinedload(CostItem.subcategory),
+                joinedload(CostItem.tags),
                 joinedload(CostItem.object).joinedload(ObjectEntity.party),
                 joinedload(CostItem.object).joinedload(ObjectEntity.person),
                 joinedload(CostItem.contract),
@@ -159,13 +173,16 @@ class AnalyticsService:
                 allocation_parts.append(f"{target} {float(alloc.percentage):g} %")
 
             contract = item.contract
+            tag_names = sorted(tag.name for tag in item.tags)
             rows.append(
                 {
                     "id": item.id,
                     "name": item.name,
                     "description": item.description,
                     "category": item.category.name if item.category else None,
-                    "subcategory": item.subcategory.name if item.subcategory else None,
+                    "category_id": item.category_id,
+                    "tags": ", ".join(tag_names) if tag_names else None,
+                    "tag_ids": [tag.id for tag in item.tags],
                     "object": item.object.name if item.object else None,
                     "object_party": (
                         item.object.party.name
@@ -314,6 +331,8 @@ class AnalyticsService:
         person_id: int | None = None,
         party_id: int | None = None,
         household: bool = False,
+        category_id: int | None = None,
+        tag_id: int | None = None,
     ) -> DashboardSummary:
         filters_set = sum(
             [
@@ -333,12 +352,17 @@ class AnalyticsService:
                 joinedload(CostItem.allocations).joinedload(CostAllocation.person),
                 joinedload(CostItem.allocations).joinedload(CostAllocation.party),
                 joinedload(CostItem.category),
+                joinedload(CostItem.tags),
                 joinedload(CostItem.object),
             )
             .filter(CostItem.is_active.is_(True))
         )
         if object_id is not None:
             query = query.filter(CostItem.object_id == object_id)
+        if category_id is not None:
+            query = query.filter(CostItem.category_id == category_id)
+        if tag_id is not None:
+            query = query.filter(CostItem.tags.any(Tag.id == tag_id))
 
         items = query.all()
         persons = self.db.query(Person).all()

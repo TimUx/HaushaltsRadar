@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   AppBar,
   Box,
@@ -9,6 +9,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  ListSubheader,
   Toolbar,
   Typography,
   Button,
@@ -19,12 +20,15 @@ import MenuIcon from '@mui/icons-material/Menu'
 import DashboardIcon from '@mui/icons-material/DashboardOutlined'
 import AccountTreeIcon from '@mui/icons-material/AccountTreeOutlined'
 import TableChartIcon from '@mui/icons-material/TableChartOutlined'
+import TimelineIcon from '@mui/icons-material/TimelineOutlined'
 import PaymentsIcon from '@mui/icons-material/PaymentsOutlined'
 import DescriptionIcon from '@mui/icons-material/DescriptionOutlined'
 import PeopleIcon from '@mui/icons-material/PeopleOutlined'
 import HomeWorkIcon from '@mui/icons-material/HomeWorkOutlined'
 import GroupsIcon from '@mui/icons-material/GroupsOutlined'
 import CategoryIcon from '@mui/icons-material/CategoryOutlined'
+import LabelIcon from '@mui/icons-material/LabelOutlined'
+import ManageAccountsIcon from '@mui/icons-material/ManageAccountsOutlined'
 import DarkModeIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeIcon from '@mui/icons-material/LightModeOutlined'
 import LoginIcon from '@mui/icons-material/Login'
@@ -39,6 +43,17 @@ interface AppLayoutProps {
   onToggleMode: () => void
 }
 
+type NavItem = {
+  label: string
+  to: string
+  icon: ReactNode
+}
+
+type NavSection = {
+  title: string
+  items: NavItem[]
+}
+
 export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -46,24 +61,49 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
   const location = useLocation()
   const { isAuthenticated, user, logout } = useAuth()
 
-  const navItems = useMemo(() => {
-    const items = [
-      { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
-      { label: 'Struktur', to: '/struktur', icon: <AccountTreeIcon /> },
-      { label: 'Kostenübersicht', to: '/kostenuebersicht', icon: <TableChartIcon /> },
+  const navSections = useMemo<NavSection[]>(() => {
+    if (!isAuthenticated || !user) return []
+
+    const sections: NavSection[] = [
+      {
+        title: 'Überblick',
+        items: [
+          { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
+          { label: 'Struktur', to: '/struktur', icon: <AccountTreeIcon /> },
+          { label: 'Kostenübersicht', to: '/kostenuebersicht', icon: <TableChartIcon /> },
+          { label: 'Histororie', to: '/historie', icon: <TimelineIcon /> },
+        ],
+      },
     ]
-    if (isAuthenticated) {
-      items.push(
-        { label: 'Kosten', to: '/kosten', icon: <PaymentsIcon /> },
-        { label: 'Verträge', to: '/vertraege', icon: <DescriptionIcon /> },
-        { label: 'Personen', to: '/personen', icon: <PeopleIcon /> },
-        { label: 'Parteien', to: '/parteien', icon: <GroupsIcon /> },
-        { label: 'Objekte', to: '/objekte', icon: <HomeWorkIcon /> },
-        { label: 'Kategorien', to: '/kategorien', icon: <CategoryIcon /> },
-      )
+
+    if (user.role === 'admin' || user.role === 'user') {
+      sections.push({
+        title: 'Verwaltung',
+        items: [
+          { label: 'Kosten', to: '/kosten', icon: <PaymentsIcon /> },
+          { label: 'Verträge', to: '/vertraege', icon: <DescriptionIcon /> },
+          { label: 'Personen', to: '/personen', icon: <PeopleIcon /> },
+          { label: 'Parteien', to: '/parteien', icon: <GroupsIcon /> },
+          { label: 'Objekte', to: '/objekte', icon: <HomeWorkIcon /> },
+          { label: 'Kategorien', to: '/kategorien', icon: <CategoryIcon /> },
+          { label: 'Tags', to: '/tags', icon: <LabelIcon /> },
+        ],
+      })
     }
-    return items
-  }, [isAuthenticated])
+
+    if (user.role === 'admin') {
+      sections.push({
+        title: 'Administration',
+        items: [{ label: 'Benutzer', to: '/benutzer', icon: <ManageAccountsIcon /> }],
+      })
+    }
+
+    return sections
+  }, [isAuthenticated, user])
+
+  const pageTitle =
+    navSections.flatMap((section) => section.items).find((item) => item.to === location.pathname)
+      ?.label || 'KostenPilot'
 
   const drawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -73,21 +113,49 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
         </Typography>
       </Toolbar>
       <Divider />
-      <List sx={{ px: 1, flex: 1 }}>
-        {navItems.map((item) => (
-          <ListItemButton
-            key={item.to}
-            component={RouterLink}
-            to={item.to}
-            selected={location.pathname === item.to}
-            onClick={() => setMobileOpen(false)}
-            sx={{ borderRadius: 1, mb: 0.5 }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
+      <Box sx={{ flex: 1, overflow: 'auto', py: 0.5 }}>
+        {navSections.map((section, index) => (
+          <Box key={section.title}>
+            {index > 0 && <Divider sx={{ mx: 1.5, my: 0.5 }} />}
+            <List
+              dense
+              subheader={
+                <ListSubheader
+                  component="div"
+                  disableSticky
+                  sx={{
+                    bgcolor: 'transparent',
+                    lineHeight: 2.2,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'text.secondary',
+                    px: 2,
+                  }}
+                >
+                  {section.title}
+                </ListSubheader>
+              }
+              sx={{ px: 1, py: 0 }}
+            >
+              {section.items.map((item) => (
+                <ListItemButton
+                  key={item.to}
+                  component={RouterLink}
+                  to={item.to}
+                  selected={location.pathname === item.to}
+                  onClick={() => setMobileOpen(false)}
+                  sx={{ borderRadius: 1, mb: 0.25 }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.label} />
+                </ListItemButton>
+              ))}
+            </List>
+          </Box>
         ))}
-      </List>
+      </Box>
       <Divider />
       <Box sx={{ p: 2 }}>
         {isAuthenticated ? (
@@ -130,7 +198,7 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
             </IconButton>
           )}
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            {navItems.find((i) => i.to === location.pathname)?.label || 'KostenPilot'}
+            {pageTitle}
           </Typography>
           <IconButton onClick={onToggleMode} aria-label="Theme umschalten">
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}

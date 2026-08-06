@@ -7,12 +7,13 @@ from app.models import (
     Category,
     Contract,
     CostAllocation,
+    CostHistoryEvent,
     CostItem,
     ObjectEntity,
     PaymentInterval,
     Person,
     PriceHistory,
-    Subcategory,
+    Tag,
 )
 
 
@@ -33,27 +34,14 @@ def seed_sample_data(db: Session) -> None:
     cat_vers = db.query(Category).filter(Category.name == "Versicherungen").one()
     cat_komm = db.query(Category).filter(Category.name == "Kommunikation").one()
 
-    sub_strom = (
-        db.query(Subcategory)
-        .filter(Subcategory.category_id == cat_haus.id, Subcategory.name == "Strom")
-        .one()
-    )
-    sub_haft = (
-        db.query(Subcategory)
-        .filter(Subcategory.category_id == cat_vers.id, Subcategory.name == "Haftpflicht")
-        .one()
-    )
-    sub_inet = (
-        db.query(Subcategory)
-        .filter(Subcategory.category_id == cat_komm.id, Subcategory.name == "Internet")
-        .one()
-    )
+    tag_strom = db.query(Tag).filter(Tag.name == "Strom").one()
+    tag_haft = db.query(Tag).filter(Tag.name == "Haftpflicht").one()
+    tag_inet = db.query(Tag).filter(Tag.name == "Internet").one()
 
     strom = CostItem(
         name="Stromvertrag",
         description="Haushaltsstrom",
         category_id=cat_haus.id,
-        subcategory_id=sub_strom.id,
         object_id=haus.id,
         contract_partner="Stadtwerke Musterstadt",
         amount=Decimal("145.00"),
@@ -62,11 +50,11 @@ def seed_sample_data(db: Session) -> None:
         start_date=date(2025, 1, 1),
         due_day=15,
         is_active=True,
+        tags=[tag_strom],
     )
     haftpflicht = CostItem(
         name="Private Haftpflicht",
         category_id=cat_vers.id,
-        subcategory_id=sub_haft.id,
         contract_partner="Allianz",
         amount=Decimal("84.00"),
         currency="EUR",
@@ -74,11 +62,11 @@ def seed_sample_data(db: Session) -> None:
         due_day=1,
         due_month=3,
         is_active=True,
+        tags=[tag_haft],
     )
     internet = CostItem(
         name="Internet Glasfaser",
         category_id=cat_komm.id,
-        subcategory_id=sub_inet.id,
         object_id=haus.id,
         contract_partner="Telekom",
         amount=Decimal("49.95"),
@@ -86,6 +74,7 @@ def seed_sample_data(db: Session) -> None:
         payment_interval=PaymentInterval.monthly,
         due_day=1,
         is_active=True,
+        tags=[tag_inet],
     )
     db.add_all([strom, haftpflicht, internet])
     db.flush()
@@ -118,10 +107,34 @@ def seed_sample_data(db: Session) -> None:
     db.add_all(
         [
             PriceHistory(
-                cost_item_id=strom.id, amount=Decimal("120.00"), valid_from=date(2025, 1, 1)
+                cost_item_id=strom.id,
+                amount=Decimal("120.00"),
+                monthly_amount=Decimal("120.00"),
+                valid_from=date(2025, 1, 1),
+                event_type=CostHistoryEvent.created,
+                notes="Vertragsstart",
             ),
             PriceHistory(
-                cost_item_id=strom.id, amount=Decimal("145.00"), valid_from=date(2026, 1, 1)
+                cost_item_id=strom.id,
+                amount=Decimal("145.00"),
+                monthly_amount=Decimal("145.00"),
+                valid_from=date(2026, 1, 1),
+                event_type=CostHistoryEvent.changed,
+                notes="Preisanpassung",
+            ),
+            PriceHistory(
+                cost_item_id=haftpflicht.id,
+                amount=Decimal("84.00"),
+                monthly_amount=Decimal("7.00"),
+                valid_from=date(2025, 3, 1),
+                event_type=CostHistoryEvent.created,
+            ),
+            PriceHistory(
+                cost_item_id=internet.id,
+                amount=Decimal("49.95"),
+                monthly_amount=Decimal("49.95"),
+                valid_from=date(2025, 6, 1),
+                event_type=CostHistoryEvent.created,
             ),
         ]
     )

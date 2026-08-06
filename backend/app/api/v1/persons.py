@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import require_editor
 from app.db.session import get_db
 from app.models import Person, User
 from app.repositories.base import BaseRepository
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/persons", tags=["Personen"])
 @router.get("", response_model=list[PersonRead])
 def list_persons(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> list[Person]:
     return BaseRepository(db, Person).list(limit=500)
 
@@ -22,7 +22,7 @@ def list_persons(
 def create_person(
     payload: PersonCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> Person:
     return BaseRepository(db, Person).add(Person(**payload.model_dump()))
 
@@ -31,7 +31,7 @@ def create_person(
 def get_person(
     person_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> Person:
     person = BaseRepository(db, Person).get(person_id)
     if not person:
@@ -44,7 +44,7 @@ def update_person(
     person_id: int,
     payload: PersonUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> Person:
     repo = BaseRepository(db, Person)
     person = repo.get(person_id)
@@ -59,7 +59,7 @@ def update_person(
 def delete_person(
     person_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> None:
     repo = BaseRepository(db, Person)
     person = repo.get(person_id)

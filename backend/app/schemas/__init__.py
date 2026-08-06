@@ -32,9 +32,23 @@ class RefreshRequest(BaseModel):
 class UserRead(ORMModel):
     id: int
     username: str
-    is_admin: bool
+    role: str
     is_active: bool
     created_at: datetime
+
+
+class UserCreate(BaseModel):
+    username: str = Field(min_length=2, max_length=100)
+    password: str = Field(min_length=6, max_length=200)
+    role: str = "user"
+    is_active: bool = True
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    password: Optional[str] = Field(default=None, min_length=6, max_length=200)
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 # --- Person ---
@@ -123,27 +137,13 @@ class ObjectRead(ObjectBase, ORMModel):
 # --- Category ---
 
 
-class SubcategoryBase(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    sort_order: int = 0
-
-
-class SubcategoryCreate(SubcategoryBase):
-    pass
-
-
-class SubcategoryRead(SubcategoryBase, ORMModel):
-    id: int
-    category_id: int
-
-
 class CategoryBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     sort_order: int = 0
 
 
 class CategoryCreate(CategoryBase):
-    subcategories: list[SubcategoryCreate] = []
+    pass
 
 
 class CategoryUpdate(BaseModel):
@@ -153,7 +153,29 @@ class CategoryUpdate(BaseModel):
 
 class CategoryRead(CategoryBase, ORMModel):
     id: int
-    subcategories: list[SubcategoryRead] = []
+    created_at: datetime
+    updated_at: datetime
+
+
+# --- Tag ---
+
+
+class TagBase(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    color: Optional[str] = None
+
+
+class TagCreate(TagBase):
+    pass
+
+
+class TagUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    color: Optional[str] = None
+
+
+class TagRead(TagBase, ORMModel):
+    id: int
     created_at: datetime
     updated_at: datetime
 
@@ -184,7 +206,6 @@ class CostItemBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: Optional[str] = None
     category_id: int
-    subcategory_id: Optional[int] = None
     object_id: Optional[int] = None
     contract_partner: Optional[str] = None
     amount: Decimal = Field(gt=0)
@@ -200,6 +221,7 @@ class CostItemBase(BaseModel):
 
 
 class CostItemCreate(CostItemBase):
+    tag_ids: list[int] = []
     allocations: list[CostAllocationCreate] = []
 
 
@@ -207,7 +229,6 @@ class CostItemUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=200)
     description: Optional[str] = None
     category_id: Optional[int] = None
-    subcategory_id: Optional[int] = None
     object_id: Optional[int] = None
     contract_partner: Optional[str] = None
     amount: Optional[Decimal] = Field(default=None, gt=0)
@@ -220,11 +241,13 @@ class CostItemUpdate(BaseModel):
     due_month: Optional[int] = Field(default=None, ge=1, le=12)
     notes: Optional[str] = None
     is_active: Optional[bool] = None
+    tag_ids: Optional[list[int]] = None
     allocations: Optional[list[CostAllocationCreate]] = None
 
 
 class CostItemRead(CostItemBase, ORMModel):
     id: int
+    tags: list[TagRead] = []
     allocations: list[CostAllocationRead] = []
     monthly_amount: Decimal
     yearly_amount: Decimal
@@ -271,8 +294,10 @@ class ContractRead(ContractBase, ORMModel):
 
 class PriceHistoryBase(BaseModel):
     cost_item_id: int
-    amount: Decimal = Field(gt=0)
+    amount: Decimal = Field(ge=0)
+    monthly_amount: Decimal = Field(ge=0)
     valid_from: date
+    event_type: str = "changed"
     notes: Optional[str] = None
 
 
@@ -283,6 +308,39 @@ class PriceHistoryCreate(PriceHistoryBase):
 class PriceHistoryRead(PriceHistoryBase, ORMModel):
     id: int
     created_at: datetime
+
+
+class CostHistoryPoint(BaseModel):
+    month: str
+    date: date
+    monthly_total: Decimal
+    is_forecast: bool = False
+
+
+class CostHistoryEventRead(BaseModel):
+    date: date
+    cost_item_id: int
+    cost_item_name: str
+    event_type: str
+    amount: Decimal
+    monthly_amount: Decimal
+    notes: Optional[str] = None
+
+
+class CostHistorySummary(BaseModel):
+    current_monthly: Decimal
+    start_monthly: Decimal
+    change_monthly: Decimal
+    change_percent: Decimal
+    active_items: int
+    months_back: int
+    forecast_months: int
+
+
+class CostHistoryResponse(BaseModel):
+    series: list[CostHistoryPoint]
+    events: list[CostHistoryEventRead]
+    summary: CostHistorySummary
 
 
 # --- Document link ---

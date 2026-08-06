@@ -74,16 +74,18 @@ docker compose -f docker-compose.dev.yml up --build
 
 | Bereich | Auth |
 |---------|------|
-| Dashboard & Analytics-API | öffentlich |
-| CRUD, Details, Administration | JWT erforderlich |
+| Healthcheck | öffentlich |
+| Dashboard, Struktur, Kostenübersicht, Historie | JWT (mind. Lese-User) |
+| CRUD / Verwaltung | JWT (Benutzer oder Admin) |
+| Benutzerverwaltung | JWT (nur Admin) |
 
 ## API-Überblick
 
 - `GET /api/v1/health` – Healthcheck
-- `GET /api/v1/analytics/dashboard` – öffentliche Kennzahlen
+- `GET /api/v1/analytics/dashboard` – Kennzahlen (Auth erforderlich)
 - `POST /api/v1/auth/login` – OAuth2 Password Flow
 - `POST /api/v1/auth/login/json` – JSON-Login
-- Geschützt: `/persons`, `/objects`, `/categories`, `/cost-items`, `/contracts`, …
+- Geschützt: `/analytics/*`, `/persons`, `/objects`, `/categories`, `/cost-items`, `/contracts`, `/users`, …
 
 ## Lizenz
 

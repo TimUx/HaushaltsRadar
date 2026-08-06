@@ -7,6 +7,7 @@ from typing import Optional
 
 from sqlalchemy import (
     Boolean,
+    Column,
     Date,
     DateTime,
     Enum,
@@ -14,6 +15,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Table,
     Text,
     UniqueConstraint,
     func,
@@ -32,6 +34,12 @@ class PaymentInterval(str, enum.Enum):
     custom = "custom"
 
 
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    user = "user"
+    viewer = "viewer"
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -41,14 +49,34 @@ class TimestampMixin:
     )
 
 
+cost_item_tags = Table(
+    "cost_item_tags",
+    Base.metadata,
+    Column("cost_item_id", ForeignKey("cost_items.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
 class User(Base, TimestampMixin):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        Enum(
+            UserRole,
+            name="user_role",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        default=UserRole.user,
+        nullable=False,
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == UserRole.admin
 
 
 class Person(Base, TimestampMixin):
@@ -118,6 +146,8 @@ class Category(Base, TimestampMixin):
 
 
 class Subcategory(Base, TimestampMixin):
+    """Legacy nested labels; migrated to Tag. Kept for schema compatibility."""
+
     __tablename__ = "subcategories"
     __table_args__ = (UniqueConstraint("category_id", "name", name="uq_subcategory_category_name"),)
 
@@ -128,6 +158,20 @@ class Subcategory(Base, TimestampMixin):
 
     category: Mapped[Category] = relationship(back_populates="subcategories")
     cost_items: Mapped[list[CostItem]] = relationship(back_populates="subcategory")
+
+
+class Tag(Base, TimestampMixin):
+    """Free-form labels assignable to many cost items."""
+
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    cost_items: Mapped[list[CostItem]] = relationship(
+        secondary=cost_item_tags, back_populates="tags"
+    )
 
 
 class CostItem(Base, TimestampMixin):
@@ -162,6 +206,9 @@ class CostItem(Base, TimestampMixin):
 
     category: Mapped[Category] = relationship(back_populates="cost_items")
     subcategory: Mapped[Optional[Subcategory]] = relationship(back_populates="cost_items")
+    tags: Mapped[list[Tag]] = relationship(
+        secondary=cost_item_tags, back_populates="cost_items"
+    )
     object: Mapped[Optional[ObjectEntity]] = relationship(back_populates="cost_items")
     allocations: Mapped[list[CostAllocation]] = relationship(
         back_populates="cost_item", cascade="all, delete-orphan"
@@ -216,6 +263,13 @@ class Contract(Base, TimestampMixin):
     cost_item: Mapped[CostItem] = relationship(back_populates="contract")
 
 
+class CostHistoryEvent(str, enum.Enum):
+    created = "created"
+    changed = "changed"
+    ended = "ended"
+    reactivated = "reactivated"
+
+
 class PriceHistory(Base, TimestampMixin):
     __tablename__ = "price_history"
 
@@ -224,7 +278,19 @@ class PriceHistory(Base, TimestampMixin):
         ForeignKey("cost_items.id", ondelete="CASCADE"), nullable=False
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    monthly_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=Decimal("0.00")
+    )
     valid_from: Mapped[date] = mapped_column(Date, nullable=False)
+    event_type: Mapped[CostHistoryEvent] = mapped_column(
+        Enum(
+            CostHistoryEvent,
+            name="cost_history_event",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        default=CostHistoryEvent.changed,
+        nullable=False,
+    )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     cost_item: Mapped[CostItem] = relationship(back_populates="price_history")

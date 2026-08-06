@@ -1,14 +1,26 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_current_user
+from app.api.deps import require_editor
 from app.db.session import get_db
-from app.models import CostAllocation, CostItem, User
-from app.schemas import CostItemCreate, CostItemRead, CostItemUpdate
+from app.models import CostAllocation, CostHistoryEvent, CostItem, Tag, User
+from app.schemas import CostItemCreate, CostItemRead, CostItemUpdate, TagRead
 from app.services.amounts import monthly_amount, yearly_amount
 from app.services.bootstrap import validate_allocations
+from app.services.cost_history import record_price_history
 
 router = APIRouter(prefix="/cost-items", tags=["Kosten"])
+
+
+def _resolve_tags(db: Session, tag_ids: list[int]) -> list[Tag]:
+    if not tag_ids:
+        return []
+    tags = db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
+    if len(tags) != len(set(tag_ids)):
+        raise HTTPException(status_code=400, detail="Mindestens ein Tag wurde nicht gefunden")
+    return tags
 
 
 def _to_read(item: CostItem) -> CostItemRead:
@@ -17,7 +29,6 @@ def _to_read(item: CostItem) -> CostItemRead:
         name=item.name,
         description=item.description,
         category_id=item.category_id,
-        subcategory_id=item.subcategory_id,
         object_id=item.object_id,
         contract_partner=item.contract_partner,
         amount=item.amount,
@@ -30,6 +41,7 @@ def _to_read(item: CostItem) -> CostItemRead:
         due_month=item.due_month,
         notes=item.notes,
         is_active=item.is_active,
+        tags=[TagRead.model_validate(tag) for tag in item.tags],
         allocations=list(item.allocations),
         monthly_amount=monthly_amount(item),
         yearly_amount=yearly_amount(item),
@@ -41,7 +53,7 @@ def _to_read(item: CostItem) -> CostItemRead:
 def _load_item(db: Session, item_id: int) -> CostItem | None:
     return (
         db.query(CostItem)
-        .options(joinedload(CostItem.allocations))
+        .options(joinedload(CostItem.allocations), joinedload(CostItem.tags))
         .filter(CostItem.id == item_id)
         .first()
     )
@@ -50,9 +62,14 @@ def _load_item(db: Session, item_id: int) -> CostItem | None:
 @router.get("", response_model=list[CostItemRead])
 def list_cost_items(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> list[CostItemRead]:
-    items = db.query(CostItem).options(joinedload(CostItem.allocations)).order_by(CostItem.name).all()
+    items = (
+        db.query(CostItem)
+        .options(joinedload(CostItem.allocations), joinedload(CostItem.tags))
+        .order_by(CostItem.name)
+        .all()
+    )
     return [_to_read(item) for item in items]
 
 
@@ -60,20 +77,29 @@ def list_cost_items(
 def create_cost_item(
     payload: CostItemCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> CostItemRead:
     data = payload.model_dump()
     allocations = data.pop("allocations", [])
+    tag_ids = data.pop("tag_ids", [])
     try:
         validate_allocations(allocations)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     item = CostItem(**data)
+    item.tags = _resolve_tags(db, tag_ids)
     db.add(item)
     db.flush()
     for alloc in allocations:
         db.add(CostAllocation(cost_item_id=item.id, **alloc))
+    record_price_history(
+        db,
+        item,
+        event_type=CostHistoryEvent.created,
+        valid_from=item.start_date or date.today(),
+        notes="Kostenposition angelegt",
+    )
     db.commit()
     loaded = _load_item(db, item.id)
     assert loaded is not None
@@ -84,7 +110,7 @@ def create_cost_item(
 def get_cost_item(
     item_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> CostItemRead:
     item = _load_item(db, item_id)
     if not item:
@@ -97,16 +123,26 @@ def update_cost_item(
     item_id: int,
     payload: CostItemUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> CostItemRead:
     item = _load_item(db, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Kostenposition nicht gefunden")
 
+    before_amount = item.amount
+    before_interval = item.payment_interval
+    before_custom = item.custom_interval_months
+    before_active = item.is_active
+    before_monthly = monthly_amount(item)
+
     data = payload.model_dump(exclude_unset=True)
     allocations = data.pop("allocations", None)
+    tag_ids = data.pop("tag_ids", None)
     for key, value in data.items():
         setattr(item, key, value)
+
+    if tag_ids is not None:
+        item.tags = _resolve_tags(db, tag_ids)
 
     if allocations is not None:
         try:
@@ -118,6 +154,36 @@ def update_cost_item(
         for alloc in allocations:
             db.add(CostAllocation(cost_item_id=item.id, **alloc))
 
+    after_monthly = monthly_amount(item)
+    amount_changed = (
+        item.amount != before_amount
+        or item.payment_interval != before_interval
+        or item.custom_interval_months != before_custom
+        or after_monthly != before_monthly
+    )
+    if before_active and not item.is_active:
+        record_price_history(
+            db,
+            item,
+            event_type=CostHistoryEvent.ended,
+            notes="Kostenposition deaktiviert",
+            force_zero=True,
+        )
+    elif not before_active and item.is_active:
+        record_price_history(
+            db,
+            item,
+            event_type=CostHistoryEvent.reactivated,
+            notes="Kostenposition reaktiviert",
+        )
+    elif amount_changed:
+        record_price_history(
+            db,
+            item,
+            event_type=CostHistoryEvent.changed,
+            notes="Betrag oder Intervall angepasst",
+        )
+
     db.commit()
     loaded = _load_item(db, item_id)
     assert loaded is not None
@@ -128,10 +194,19 @@ def update_cost_item(
 def delete_cost_item(
     item_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> None:
-    item = db.get(CostItem, item_id)
+    """Soft-delete: deactivate and record history so the timeline stays intact."""
+    item = _load_item(db, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Kostenposition nicht gefunden")
-    db.delete(item)
+    if item.is_active:
+        item.is_active = False
+        record_price_history(
+            db,
+            item,
+            event_type=CostHistoryEvent.ended,
+            notes="Kostenposition entfernt",
+            force_zero=True,
+        )
     db.commit()

@@ -7,6 +7,8 @@ import { formatCurrency } from './format'
 export type DashboardPdfFilters = {
   objectName?: string | null
   shareLabel?: string | null
+  categoryName?: string | null
+  tagName?: string | null
   includePartyComparison?: boolean
 }
 
@@ -88,6 +90,8 @@ export function exportDashboardPdf(
 
   const filterParts: string[] = []
   if (filters.objectName) filterParts.push(`Objekt: ${filters.objectName}`)
+  if (filters.categoryName) filterParts.push(`Kategorie: ${filters.categoryName}`)
+  if (filters.tagName) filterParts.push(`Tag: ${filters.tagName}`)
   if (filters.shareLabel) filterParts.push(`Anteil: ${filters.shareLabel}`)
   const filterText = filterParts.length ? filterParts.join('  ·  ') : 'Keine Filter · Gesamtsicht'
 

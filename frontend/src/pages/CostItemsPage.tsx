@@ -4,16 +4,21 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   IconButton,
   InputLabel,
+  ListItemText,
   MenuItem,
+  OutlinedInput,
   Select,
   Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -24,7 +29,7 @@ import {
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import EditIcon from '@mui/icons-material/EditOutlined'
-import { categoriesApi, costItemsApi, objectsApi, partiesApi, personsApi } from '../api'
+import { categoriesApi, costItemsApi, objectsApi, partiesApi, personsApi, tagsApi } from '../api'
 import { INTERVAL_LABELS, type CostItem, type PaymentInterval, MONTH_LABELS, intervalNeedsDueMonth } from '../api/types'
 import { formatCurrency } from '../utils/format'
 import {
@@ -42,12 +47,13 @@ type FormState = {
   name: string
   amount: string
   categoryId: number | ''
-  subcategoryId: number | ''
+  tagIds: number[]
   objectId: number | ''
   interval: PaymentInterval
   dueDay: string
   dueMonth: number | ''
   partner: string
+  isActive: boolean
   allocations: AllocationDraft[]
 }
 
@@ -56,12 +62,13 @@ function defaultForm(categoryId: number | '' = ''): FormState {
     name: '',
     amount: '100',
     categoryId,
-    subcategoryId: '',
+    tagIds: [],
     objectId: '',
     interval: 'monthly',
     dueDay: '1',
     dueMonth: '',
     partner: '',
+    isActive: true,
     allocations: [emptyAllocation(true)],
   }
 }
@@ -71,12 +78,13 @@ function formFromItem(item: CostItem): FormState {
     name: item.name,
     amount: String(item.amount),
     categoryId: item.category_id,
-    subcategoryId: item.subcategory_id ?? '',
+    tagIds: (item.tags || []).map((t) => t.id),
     objectId: item.object_id ?? '',
     interval: item.payment_interval,
     dueDay: item.due_day != null ? String(item.due_day) : '',
     dueMonth: item.due_month ?? '',
     partner: item.contract_partner || '',
+    isActive: item.is_active,
     allocations: draftsFromAllocations(item.allocations),
   }
 }
@@ -123,29 +131,20 @@ export function CostItemsPage() {
     queryKey: ['parties'],
     queryFn: partiesApi.list,
   })
+  const { data: tags = [] } = useQuery({
+    queryKey: ['tags'],
+    queryFn: tagsApi.list,
+  })
 
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<FormState>(defaultForm())
   const [formError, setFormError] = useState<string | null>(null)
 
-  const categoryLabel = useMemo(() => {
-    const categoriesById = new Map(categories.map((c) => [c.id, c]))
-    const subcategoriesById = new Map(
-      categories.flatMap((c) => c.subcategories.map((s) => [s.id, { categoryId: c.id, name: s.name }] as const)),
-    )
-    return (categoryId: number, subcategoryId?: number | null) => {
-      const category = categoriesById.get(categoryId)?.name || String(categoryId)
-      if (subcategoryId == null) return category
-      const sub = subcategoriesById.get(subcategoryId)
-      return sub ? `${category} / ${sub.name}` : category
-    }
+  const categoryName = useMemo(() => {
+    const map = new Map(categories.map((c) => [c.id, c.name]))
+    return (id: number) => map.get(id) || String(id)
   }, [categories])
-
-  const availableSubcategories = useMemo(() => {
-    if (form.categoryId === '') return []
-    return categories.find((c) => c.id === form.categoryId)?.subcategories ?? []
-  }, [categories, form.categoryId])
 
   const personName = useMemo(() => {
     const map = new Map(persons.map((p) => [p.id, p.name]))
@@ -163,7 +162,7 @@ export function CostItemsPage() {
         name: form.name,
         amount: Number(form.amount),
         category_id: form.categoryId,
-        subcategory_id: form.subcategoryId === '' ? null : form.subcategoryId,
+        tag_ids: form.tagIds,
         object_id: form.objectId === '' ? null : form.objectId,
         payment_interval: form.interval,
         due_day: form.dueDay ? Number(form.dueDay) : null,
@@ -173,7 +172,7 @@ export function CostItemsPage() {
             : null,
         contract_partner: form.partner || null,
         currency: 'EUR',
-        is_active: true,
+        is_active: form.isActive,
         allocations: allocationsPayload(form.allocations),
       }
       if (editingId == null) {
@@ -188,6 +187,8 @@ export function CostItemsPage() {
       setFormError(null)
       await queryClient.invalidateQueries({ queryKey: ['cost-items'] })
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      await queryClient.invalidateQueries({ queryKey: ['cost-overview'] })
+      await queryClient.invalidateQueries({ queryKey: ['cost-history'] })
     },
   })
 
@@ -196,6 +197,8 @@ export function CostItemsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['cost-items'] })
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      await queryClient.invalidateQueries({ queryKey: ['cost-overview'] })
+      await queryClient.invalidateQueries({ queryKey: ['cost-history'] })
     },
   })
 
@@ -254,8 +257,10 @@ export function CostItemsPage() {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Kategorie</TableCell>
+              <TableCell>Tags</TableCell>
               <TableCell>Verteilung</TableCell>
               <TableCell>Intervall</TableCell>
+              <TableCell>Status</TableCell>
               <TableCell align="right">Betrag</TableCell>
               <TableCell align="right">Monatlich</TableCell>
               <TableCell align="right">Aktionen</TableCell>
@@ -263,24 +268,30 @@ export function CostItemsPage() {
           </TableHead>
           <TableBody>
             {data.map((item) => (
-              <TableRow key={item.id}>
+              <TableRow key={item.id} sx={{ opacity: item.is_active ? 1 : 0.55 }}>
                 <TableCell>{item.name}</TableCell>
-                <TableCell>{categoryLabel(item.category_id, item.subcategory_id)}</TableCell>
+                <TableCell>{categoryName(item.category_id)}</TableCell>
+                <TableCell>
+                  {(item.tags || []).map((t) => t.name).join(', ') || '–'}
+                </TableCell>
                 <TableCell>{formatAllocations(item, personName, partyName)}</TableCell>
                 <TableCell>{INTERVAL_LABELS[item.payment_interval]}</TableCell>
+                <TableCell>{item.is_active ? 'Aktiv' : 'Entfernt'}</TableCell>
                 <TableCell align="right">{formatCurrency(item.amount, item.currency)}</TableCell>
                 <TableCell align="right">{formatCurrency(item.monthly_amount, item.currency)}</TableCell>
                 <TableCell align="right">
                   <IconButton aria-label="Bearbeiten" onClick={() => openEdit(item)} size="small">
                     <EditIcon fontSize="small" />
                   </IconButton>
-                  <IconButton
-                    aria-label="Löschen"
-                    onClick={() => deleteMutation.mutate(item.id)}
-                    size="small"
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
+                  {item.is_active && (
+                    <IconButton
+                      aria-label="Entfernen"
+                      onClick={() => deleteMutation.mutate(item.id)}
+                      size="small"
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -321,7 +332,6 @@ export function CostItemsPage() {
                     setForm((f) => ({
                       ...f,
                       categoryId: Number(e.target.value),
-                      subcategoryId: '',
                     }))
                   }
                 >
@@ -332,23 +342,31 @@ export function CostItemsPage() {
                   ))}
                 </Select>
               </FormControl>
-              <FormControl fullWidth disabled={form.categoryId === '' || availableSubcategories.length === 0}>
-                <InputLabel>Unterkategorie</InputLabel>
+              <FormControl fullWidth>
+                <InputLabel>Tags</InputLabel>
                 <Select
-                  label="Unterkategorie"
-                  value={form.subcategoryId === '' ? '' : form.subcategoryId}
+                  multiple
+                  label="Tags"
+                  value={form.tagIds}
                   onChange={(e) => {
-                    const value = e.target.value as number | ''
+                    const value = e.target.value
                     setForm((f) => ({
                       ...f,
-                      subcategoryId: value === '' ? '' : Number(value),
+                      tagIds: typeof value === 'string' ? [] : value,
                     }))
                   }}
+                  input={<OutlinedInput label="Tags" />}
+                  renderValue={(selected) =>
+                    tags
+                      .filter((t) => selected.includes(t.id))
+                      .map((t) => t.name)
+                      .join(', ')
+                  }
                 >
-                  <MenuItem value="">Keine Unterkategorie</MenuItem>
-                  {availableSubcategories.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>
-                      {s.name}
+                  {tags.map((tag) => (
+                    <MenuItem key={tag.id} value={tag.id}>
+                      <Checkbox checked={form.tagIds.includes(tag.id)} />
+                      <ListItemText primary={tag.name} />
                     </MenuItem>
                   ))}
                 </Select>
@@ -438,6 +456,15 @@ export function CostItemsPage() {
                 fullWidth
                 value={form.partner}
                 onChange={(e) => setForm((f) => ({ ...f, partner: e.target.value }))}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.isActive}
+                    onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                  />
+                }
+                label="Aktiv"
               />
               <AllocationEditor
                 persons={persons}

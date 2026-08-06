@@ -58,12 +58,9 @@ def test_health_public(client: TestClient):
     assert response.json()["status"] == "ok"
 
 
-def test_analytics_public(client: TestClient):
+def test_analytics_requires_auth(client: TestClient):
     response = client.get("/api/v1/analytics/dashboard")
-    assert response.status_code == 200
-    data = response.json()
-    assert "monthly_fixed_costs" in data
-    assert data["active_cost_items"] == 0
+    assert response.status_code == 401
 
 
 def test_persons_requires_auth(client: TestClient):
@@ -131,19 +128,25 @@ def test_login_and_crud(client: TestClient):
         },
     )
 
-    options = client.get("/api/v1/analytics/filter-options")
+    options = client.get("/api/v1/analytics/filter-options", headers=headers)
     assert options.status_code == 200
     assert any(p["name"] == "Tim" for p in options.json()["persons"])
     assert any(o["name"] == "Haus" for o in options.json()["objects"])
 
-    by_object = client.get(f"/api/v1/analytics/dashboard?object_id={object_id}")
+    by_object = client.get(
+        f"/api/v1/analytics/dashboard?object_id={object_id}", headers=headers
+    )
     assert by_object.status_code == 200
     assert by_object.json()["monthly_fixed_costs"] == "120.00"
 
-    by_person = client.get(f"/api/v1/analytics/dashboard?person_id={person_id}")
+    by_person = client.get(
+        f"/api/v1/analytics/dashboard?person_id={person_id}", headers=headers
+    )
     assert by_person.status_code == 200
     assert by_person.json()["monthly_fixed_costs"] == "36.00"
 
-    by_household = client.get("/api/v1/analytics/dashboard?household=true")
+    by_household = client.get(
+        "/api/v1/analytics/dashboard?household=true", headers=headers
+    )
     assert by_household.status_code == 200
     assert by_household.json()["monthly_fixed_costs"] == "84.00"
