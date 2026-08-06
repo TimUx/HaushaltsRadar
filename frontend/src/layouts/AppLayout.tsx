@@ -39,6 +39,7 @@ import InsightsIcon from '@mui/icons-material/InsightsOutlined'
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { MyFinancesButton } from '../components/MyFinancesButton'
+import { HaushaltsRadarLogo } from '../assets/HaushaltsRadarLogo'
 
 const DRAWER_WIDTH = 240
 
@@ -95,7 +96,7 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
           { label: 'Berichte', to: '/berichte', icon: <AssessmentIcon /> },
           { label: 'Struktur', to: '/struktur', icon: <AccountTreeIcon /> },
           { label: 'Kostenübersicht', to: '/kostenuebersicht', icon: <TableChartIcon /> },
-          { label: 'Histororie', to: '/historie', icon: <TimelineIcon /> },
+          { label: 'Historie', to: '/historie', icon: <TimelineIcon /> },
         ],
       },
     ]
@@ -137,13 +138,23 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
 
   const pageTitle =
     navSections.flatMap((section) => section.items).find((item) => item.to === location.pathname)
-      ?.label || 'KostenPilot'
+      ?.label || 'HaushaltsRadar'
 
   const drawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar>
-        <Typography variant="h6" noWrap>
-          KostenPilot
+      <Toolbar sx={{ gap: 1, minHeight: 64 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            color: 'primary.main',
+            flexShrink: 0,
+          }}
+        >
+          <HaushaltsRadarLogo size={28} />
+        </Box>
+        <Typography variant="h6" noWrap component="span">
+          HaushaltsRadar
         </Typography>
       </Toolbar>
       <Divider />

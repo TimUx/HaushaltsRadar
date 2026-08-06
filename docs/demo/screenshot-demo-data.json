@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "exported_at": "2026-08-06T22:07:55.126268+00:00",
-  "app": "kostenpilot",
+  "app": "haushaltsradar",
   "data": {
     "parties": [
       {

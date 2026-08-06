@@ -1,4 +1,4 @@
-# Admin-Guide – KostenPilot
+# Admin-Guide – HaushaltsRadar
 
 Anleitung für Betrieb, Benutzerverwaltung und Datensicherung.
 
@@ -7,8 +7,8 @@ Anleitung für Betrieb, Benutzerverwaltung und Datensicherung.
 ## Installation (Produktion / Homelab)
 
 ```bash
-git clone https://github.com/TimUx/KostenPilot.git
-cd KostenPilot
+git clone https://github.com/TimUx/HaushaltsRadar.git
+cd HaushaltsRadar
 cp .env.example .env
 ```
 
@@ -31,12 +31,14 @@ docker compose up --build -d
 Oder mit vorgebauten Release-Images aus GHCR:
 
 ```bash
-export KOSTENPILOT_VERSION=1.0.0   # ohne führendes v, oder latest
+export HAUSHALTSRADAR_VERSION=1.0.0   # ohne führendes v, oder latest
 docker compose -f docker-compose.ghcr.yml up -d
 ```
 
-Images: `ghcr.io/timux/kostenpilot-backend` und `ghcr.io/timux/kostenpilot-frontend`  
+Images: `ghcr.io/timux/haushaltsradar-backend` und `ghcr.io/timux/haushaltsradar-frontend`  
 Werden automatisch gebaut, sobald ein GitHub-Release veröffentlicht wird (Workflow `.github/workflows/release-ghcr.yml`).
+
+Hinweis: Ältere Releases veröffentlichten noch `ghcr.io/timux/kostenpilot-*`. Neue Releases nutzen die `haushaltsradar-*`-Packages.
 
 Nach dem ersten Push sind GHCR-Packages oft **privat**. Unter GitHub → Packages → jeweiliges Package → *Package settings* → Visibility auf **Public** stellen (sonst brauchen Nutzer `docker login ghcr.io`).
 
@@ -115,8 +117,8 @@ docker compose logs -f backend frontend
 docker compose down
 docker compose up -d
 
-# Volume (PostgreSQL-Daten)
-# docker volume ls | grep kostenpilot
+# Volume (PostgreSQL-Daten; Legacy-Name kostenpilot_kostenpilot_pgdata)
+# docker volume ls | grep -E 'kostenpilot|haushaltsradar'
 ```
 
 Updates:

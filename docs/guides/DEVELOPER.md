@@ -1,4 +1,4 @@
-# Developer-Guide – KostenPilot
+# Developer-Guide – HaushaltsRadar
 
 Architektur, lokale Entwicklung und Erweiterungspunkte.
 
@@ -61,11 +61,11 @@ docker compose -f docker-compose.dev.yml up --build
 Release-Images (GHCR) ohne lokalen App-Build:
 
 ```bash
-export KOSTENPILOT_VERSION=latest
+export HAUSHALTSRADAR_VERSION=latest
 docker compose -f docker-compose.ghcr.yml up -d
 ```
 
-CI: Bei `release: published` baut `.github/workflows/release-ghcr.yml` Backend/Frontend multi-arch nach `ghcr.io/timux/kostenpilot-*`. Manuell: Actions → *Release GHCR images* → *Run workflow*.
+CI: Bei `release: published` baut `.github/workflows/release-ghcr.yml` Backend/Frontend multi-arch nach `ghcr.io/timux/haushaltsradar-*`. Manuell: Actions → *Release GHCR images* → *Run workflow*.
 ## Lokale Entwicklung
 
 ### Backend

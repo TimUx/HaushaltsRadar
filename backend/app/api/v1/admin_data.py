@@ -21,7 +21,7 @@ def export_data(
     """Download a full JSON dump of all domain data (admin only)."""
     bundle = export_bundle(db)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
-    filename = f"kostenpilot-backup-{stamp}.json"
+    filename = f"haushaltsradar-backup-{stamp}.json"
     payload = json.dumps(bundle, ensure_ascii=False, indent=2).encode("utf-8")
     return Response(
         content=payload,

@@ -11,6 +11,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useAuth } from '../auth/AuthContext'
+import { HaushaltsRadarLogo } from '../assets/HaushaltsRadarLogo'
 
 export function LoginPage() {
   const { login, isAuthenticated } = useAuth()
@@ -45,10 +46,15 @@ export function LoginPage() {
       <Card>
         <CardContent>
           <Stack spacing={2} component="form" onSubmit={onSubmit}>
-            <Typography variant="h5">Anmelden</Typography>
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+              <Box sx={{ color: 'primary.main', display: 'flex' }}>
+                <HaushaltsRadarLogo size={36} />
+              </Box>
+              <Typography variant="h5">HaushaltsRadar</Typography>
+            </Stack>
             <Typography color="text.secondary" variant="body2">
-              Für Dashboard, Struktur, Kostenübersicht und Historie ist mindestens ein
-              Lese-Zugang erforderlich.
+              Anmelden für Dashboard, Struktur, Kostenübersicht und Historie (mindestens
+              Lese-Zugang erforderlich).
             </Typography>
             {error && <Alert severity="error">{error}</Alert>}
             <TextField

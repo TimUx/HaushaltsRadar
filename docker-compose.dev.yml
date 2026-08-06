@@ -1,37 +1,39 @@
+name: haushaltsradar-dev
+
 services:
   postgresql:
     image: postgres:16-alpine
-    container_name: kostenpilot-postgresql
+    container_name: haushaltsradar-postgresql
     environment:
-      POSTGRES_USER: kostenpilot
-      POSTGRES_PASSWORD: kostenpilot
-      POSTGRES_DB: kostenpilot
+      POSTGRES_USER: haushaltsradar
+      POSTGRES_PASSWORD: haushaltsradar
+      POSTGRES_DB: haushaltsradar
     ports:
       - "5432:5432"
     volumes:
-      - kostenpilot_pgdata_dev:/var/lib/postgresql/data
+      - haushaltsradar_pgdata_dev:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kostenpilot -d kostenpilot"]
+      test: ["CMD-SHELL", "pg_isready -U haushaltsradar -d haushaltsradar"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   backend:
     build: ./backend
-    container_name: kostenpilot-backend
+    container_name: haushaltsradar-backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend:/app
     environment:
-      POSTGRES_USER: kostenpilot
-      POSTGRES_PASSWORD: kostenpilot
-      POSTGRES_DB: kostenpilot
+      POSTGRES_USER: haushaltsradar
+      POSTGRES_PASSWORD: haushaltsradar
+      POSTGRES_DB: haushaltsradar
       POSTGRES_HOST: postgresql
       POSTGRES_PORT: 5432
       SECRET_KEY: dev-secret-key-change-me
       BOOTSTRAP_ADMIN_USERNAME: admin
       BOOTSTRAP_ADMIN_PASSWORD: admin
-      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:3080
       DEBUG: "true"
     ports:
       - "8000:8000"
@@ -41,7 +43,7 @@ services:
 
   frontend:
     image: node:22-alpine
-    container_name: kostenpilot-frontend
+    container_name: haushaltsradar-frontend
     working_dir: /app
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     volumes:
@@ -55,5 +57,5 @@ services:
       - backend
 
 volumes:
-  kostenpilot_pgdata_dev:
+  haushaltsradar_pgdata_dev:
   frontend_node_modules:

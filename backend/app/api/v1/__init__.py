@@ -32,4 +32,4 @@ api_router.include_router(contracts.router)
 
 @api_router.get("/health", tags=["System"])
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "kostenpilot-backend"}
+    return {"status": "ok", "service": "haushaltsradar-backend"}

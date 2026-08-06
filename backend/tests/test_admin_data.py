@@ -28,7 +28,7 @@ def test_export_import_roundtrip(client: TestClient):
     assert export.status_code == 200
     assert "attachment" in export.headers.get("content-disposition", "")
     bundle = export.json()
-    assert bundle["app"] == "kostenpilot"
+    assert bundle["app"] == "haushaltsradar"
     assert bundle["schema_version"] == 1
     assert any(p["name"] == "ExportTim" for p in bundle["data"]["persons"])
     assert len(bundle["data"]["users"]) >= 1
@@ -52,6 +52,21 @@ def test_export_import_roundtrip(client: TestClient):
     names = [p["name"] for p in persons_after.json()]
     assert "ExportTim" in names
     assert "ShouldVanish" not in names
+
+
+def test_import_accepts_legacy_kostenpilot_app_id(client: TestClient):
+    headers = _admin_headers(client)
+    export = client.get("/api/v1/admin/export", headers=headers)
+    assert export.status_code == 200
+    bundle = export.json()
+    bundle["app"] = "kostenpilot"
+
+    restore = client.post(
+        "/api/v1/admin/import",
+        headers=headers,
+        files={"file": ("legacy.json", json.dumps(bundle).encode("utf-8"), "application/json")},
+    )
+    assert restore.status_code == 200, restore.text
 
 
 def test_import_rejects_invalid_json(client: TestClient):

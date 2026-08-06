@@ -334,7 +334,7 @@ function triggerDownload(blob: Blob, filename: string) {
 export const adminDataApi = {
   exportJson: async (filenameHint?: string) => {
     const { blob, filename } = await apiFetchBlob('/admin/export', true)
-    triggerDownload(blob, filenameHint || filename || 'kostenpilot-export.json')
+    triggerDownload(blob, filenameHint || filename || 'haushaltsradar-export.json')
   },
   importJson: (file: File) =>
     apiUploadJsonFile<{ status: string; imported: Record<string, number> }>(

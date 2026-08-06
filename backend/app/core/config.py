@@ -6,13 +6,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "KostenPilot"
+    app_name: str = "HaushaltsRadar"
     api_v1_prefix: str = "/api/v1"
     debug: bool = False
 
-    postgres_user: str = "kostenpilot"
-    postgres_password: str = "kostenpilot"
-    postgres_db: str = "kostenpilot"
+    postgres_user: str = "haushaltsradar"
+    postgres_password: str = "haushaltsradar"
+    postgres_db: str = "haushaltsradar"
     postgres_host: str = "localhost"
     postgres_port: int = 5432
 

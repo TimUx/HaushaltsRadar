@@ -26,10 +26,10 @@ jobs:
         include:
           - name: backend
             context: ./backend
-            image_suffix: kostenpilot-backend
+            image_suffix: haushaltsradar-backend
           - name: frontend
             context: ./frontend
-            image_suffix: kostenpilot-frontend
+            image_suffix: haushaltsradar-frontend
             build_args: VITE_API_BASE_URL=/api/v1
     steps:
       - name: Checkout
@@ -79,8 +79,8 @@ jobs:
             type=raw,value=${{ steps.version.outputs.major_minor }},enable=${{ steps.version.outputs.major_minor != '' }}
             type=raw,value=latest,enable=${{ steps.version.outputs.prerelease != 'true' }}
           labels: |
-            org.opencontainers.image.title=KostenPilot ${{ matrix.name }}
-            org.opencontainers.image.description=KostenPilot ${{ matrix.name }} image
+            org.opencontainers.image.title=HaushaltsRadar ${{ matrix.name }}
+            org.opencontainers.image.description=HaushaltsRadar ${{ matrix.name }} image
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 

@@ -292,7 +292,7 @@ class ReportService:
         ]
 
         return {
-            "title": "KostenPilot Periodenbericht",
+            "title": "HaushaltsRadar Periodenbericht",
             "period_type": period_type,
             "period_label": label,
             "date_from": range_start.isoformat(),

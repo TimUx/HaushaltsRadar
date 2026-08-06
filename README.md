@@ -1,8 +1,10 @@
-# KostenPilot
+# HaushaltsRadar
+
+> Zuvor **KostenPilot** – Repo, Images und UI wurden nach HaushaltsRadar umbenannt. Alte JSON-Backups mit `"app": "kostenpilot"` lassen sich weiterhin importieren.
 
 Selbst gehostete Web-App für **Fixkosten, Verträge und wiederkehrende Ausgaben** im Haushalt – inklusive Einnahmen, Analysen und Periodenberichten.
 
-KostenPilot ist **kein** klassisches Haushaltsbuch und **keine** Banking-Software. Es modelliert Fixkosten, Abos, Versicherungen und ähnliche Positionen, verteilt sie auf Personen/Parteien und macht sie über Dashboards und Diagramme nachvollziehbar.
+HaushaltsRadar ist **kein** klassisches Haushaltsbuch und **keine** Banking-Software. Es modelliert Fixkosten, Abos, Versicherungen und ähnliche Positionen, verteilt sie auf Personen/Parteien und macht sie über Dashboards und Diagramme nachvollziehbar.
 
 ![Dashboard](docs/screenshots/01-dashboard.png)
 
@@ -32,8 +34,8 @@ KostenPilot ist **kein** klassisches Haushaltsbuch und **keine** Banking-Softwar
 Voraussetzungen: Docker und Docker Compose.
 
 ```bash
-git clone https://github.com/TimUx/KostenPilot.git
-cd KostenPilot
+git clone https://github.com/TimUx/HaushaltsRadar.git
+cd HaushaltsRadar
 cp .env.example .env
 # SECRET_KEY und Bootstrap-Passwort in .env anpassen
 docker compose up --build
@@ -52,12 +54,12 @@ Optionale Demo-Daten: `SEED_SAMPLE_DATA=true` in `.env` (Standard in `.env.examp
 
 Bei jedem GitHub-Release werden Backend- und Frontend-Images nach GHCR gebaut (`linux/amd64`, `linux/arm64`):
 
-- `ghcr.io/timux/kostenpilot-backend`
-- `ghcr.io/timux/kostenpilot-frontend`
+- `ghcr.io/timux/haushaltsradar-backend`
+- `ghcr.io/timux/haushaltsradar-frontend`
 
 ```bash
 cp .env.example .env
-export KOSTENPILOT_VERSION=1.0.0   # oder latest
+export HAUSHALTSRADAR_VERSION=1.0.0   # oder latest
 docker compose -f docker-compose.ghcr.yml up -d
 ```
 

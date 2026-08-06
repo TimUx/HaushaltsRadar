@@ -1,4 +1,4 @@
-"""Full JSON export / replace-import for KostenPilot domain data."""
+"""Full JSON export / replace-import for HaushaltsRadar domain data."""
 
 from __future__ import annotations
 
@@ -29,7 +29,9 @@ from app.models import (
 )
 
 SCHEMA_VERSION = 1
-APP_NAME = "kostenpilot"
+APP_NAME = "haushaltsradar"
+# Accept legacy KostenPilot backups during import
+LEGACY_APP_NAMES = frozenset({"kostenpilot"})
 
 
 def _jsonable(value: Any) -> Any:
@@ -287,8 +289,9 @@ def _sync_sequences(db: Session) -> None:
 def import_bundle(db: Session, bundle: dict[str, Any]) -> dict[str, int]:
     if not isinstance(bundle, dict):
         raise ValueError("Ungültiges Backup-Format")
-    if bundle.get("app") not in (None, APP_NAME):
-        raise ValueError("Backup stammt nicht von KostenPilot")
+    app_id = bundle.get("app")
+    if app_id not in (None, APP_NAME, *LEGACY_APP_NAMES):
+        raise ValueError("Backup stammt nicht von HaushaltsRadar")
     version = bundle.get("schema_version")
     if version is None:
         raise ValueError("schema_version fehlt")

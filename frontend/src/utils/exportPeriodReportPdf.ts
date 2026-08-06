@@ -101,7 +101,7 @@ export function exportPeriodReportPdf(
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
   doc.setTextColor(30, 45, 60)
-  doc.text('KostenPilot', 14, y)
+  doc.text('HaushaltsRadar', 14, y)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
@@ -200,5 +200,5 @@ export function exportPeriodReportPdf(
 
   const stamp = new Date().toISOString().slice(0, 10)
   const slug = data.period_label.replace(/[^a-zA-Z0-9äöüÄÖÜ]+/g, '_').replace(/^_|_$/g, '')
-  doc.save(`KostenPilot-Bericht_${slug}_${stamp}.pdf`)
+  doc.save(`HaushaltsRadar-Bericht_${slug}_${stamp}.pdf`)
 }

@@ -70,7 +70,7 @@ export function exportDashboardPdf(
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
   doc.setTextColor(30, 45, 60)
-  doc.text('KostenPilot', 14, y)
+  doc.text('HaushaltsRadar', 14, y)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
@@ -342,7 +342,7 @@ export function exportDashboardPdf(
     doc.setFontSize(8)
     doc.setTextColor(140, 140, 140)
     doc.text(
-      `KostenPilot · Seite ${page} / ${pageCount}`,
+      `HaushaltsRadar · Seite ${page} / ${pageCount}`,
       pageWidth / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: 'center' },
@@ -356,5 +356,5 @@ export function exportDashboardPdf(
         .replace(/^-|-$/g, '')
         .slice(0, 40)}`
     : ''
-  doc.save(`KostenPilot-Dashboard_${filenameStamp()}${filterSlug}.pdf`)
+  doc.save(`HaushaltsRadar-Dashboard_${filenameStamp()}${filterSlug}.pdf`)
 }

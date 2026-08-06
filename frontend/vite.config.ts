@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'pwa-192.png', 'pwa-512.png'],
       manifest: {
-        name: 'KostenPilot',
-        short_name: 'KostenPilot',
+        name: 'HaushaltsRadar',
+        short_name: 'HaushaltsRadar',
         description: 'Fixkosten, Einnahmen und wiederkehrende Ausgaben im Überblick',
         theme_color: '#2F5D8C',
         background_color: '#F5F7FA',

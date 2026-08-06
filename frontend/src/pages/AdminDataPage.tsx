@@ -23,7 +23,7 @@ import { adminDataApi } from '../api'
 function backupFilename(): string {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `kostenpilot-backup-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.json`
+  return `haushaltsradar-backup-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.json`
 }
 
 export function AdminDataPage() {
