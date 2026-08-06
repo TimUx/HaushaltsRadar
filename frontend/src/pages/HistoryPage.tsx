@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
@@ -22,8 +22,11 @@ import {
   useTheme,
 } from '@mui/material'
 import ReactECharts from 'echarts-for-react'
+import { useSearchParams } from 'react-router-dom'
 import { analyticsApi } from '../api'
 import { formatCurrency } from '../utils/format'
+import { MyFinancesButton } from '../components/MyFinancesButton'
+import { useAuth } from '../auth/AuthContext'
 
 type ShareFilter = '' | 'household' | `person:${number}` | `party:${number}`
 
@@ -61,12 +64,38 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint?: stri
 
 export function HistoryPage() {
   const theme = useTheme()
+  const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [objectId, setObjectId] = useState<number | ''>('')
   const [categoryId, setCategoryId] = useState<number | ''>('')
   const [tagId, setTagId] = useState<number | ''>('')
   const [shareFilter, setShareFilter] = useState<ShareFilter>('')
   const [monthsBack, setMonthsBack] = useState(12)
   const [forecastMonths, setForecastMonths] = useState(6)
+
+  const myPersonFilter: ShareFilter | null =
+    user?.person_id != null ? `person:${user.person_id}` : null
+  const meineRequested = searchParams.get('meine') === '1'
+  const myFinancesActive =
+    myPersonFilter != null && (shareFilter === myPersonFilter || meineRequested)
+
+  useEffect(() => {
+    if (meineRequested && myPersonFilter && shareFilter !== myPersonFilter) {
+      setShareFilter(myPersonFilter)
+    }
+  }, [meineRequested, myPersonFilter, shareFilter])
+
+  function setMyFinances(active: boolean) {
+    const next = new URLSearchParams(searchParams)
+    if (active && myPersonFilter) {
+      next.set('meine', '1')
+      setShareFilter(myPersonFilter)
+    } else {
+      next.delete('meine')
+      if (myPersonFilter && shareFilter === myPersonFilter) setShareFilter('')
+    }
+    setSearchParams(next, { replace: true })
+  }
 
   const filters = useMemo(() => {
     const base = {
@@ -298,6 +327,10 @@ export function HistoryPage() {
             ))}
           </Select>
         </FormControl>
+        <MyFinancesButton
+          active={myFinancesActive}
+          onToggle={() => setMyFinances(!myFinancesActive)}
+        />
         {hasFilter && (
           <Button
             size="small"
@@ -306,6 +339,9 @@ export function HistoryPage() {
               setCategoryId('')
               setTagId('')
               setShareFilter('')
+              const next = new URLSearchParams(searchParams)
+              next.delete('meine')
+              setSearchParams(next, { replace: true })
             }}
           >
             Zurücksetzen
@@ -316,7 +352,7 @@ export function HistoryPage() {
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Kpi
-            label="Aktuell monatlich"
+            label="Aktuell monatlich (Netto)"
             value={formatCurrency(data.summary.current_monthly)}
             hint={`${data.summary.active_items} aktive Positionen`}
           />
@@ -347,7 +383,7 @@ export function HistoryPage() {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Monatliche Fixkosten im Verlauf
+            Monatliche Netto-Belastung im Verlauf
           </Typography>
           <ReactECharts option={chartOption} style={{ height: 380 }} notMerge />
         </CardContent>
@@ -367,6 +403,7 @@ export function HistoryPage() {
                 <TableCell>Datum</TableCell>
                 <TableCell>Ereignis</TableCell>
                 <TableCell>Position</TableCell>
+                <TableCell align="right">Betrag</TableCell>
                 <TableCell align="right">Monatsäquivalent</TableCell>
                 <TableCell>Hinweis</TableCell>
               </TableRow>
@@ -374,7 +411,7 @@ export function HistoryPage() {
             <TableBody>
               {data.events.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5}>Keine Ereignisse im Zeitraum</TableCell>
+                  <TableCell colSpan={6}>Keine Ereignisse im Zeitraum</TableCell>
                 </TableRow>
               )}
               {data.events.map((event) => (
@@ -382,6 +419,7 @@ export function HistoryPage() {
                   <TableCell>{event.date}</TableCell>
                   <TableCell>{EVENT_LABELS[event.event_type] || event.event_type}</TableCell>
                   <TableCell>{event.cost_item_name}</TableCell>
+                  <TableCell align="right">{formatCurrency(event.amount)}</TableCell>
                   <TableCell align="right">{formatCurrency(event.monthly_amount)}</TableCell>
                   <TableCell>{event.notes || '–'}</TableCell>
                 </TableRow>

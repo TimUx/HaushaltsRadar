@@ -14,7 +14,7 @@ from app.models import (
     PriceHistory,
     Tag,
 )
-from app.services.amounts import monthly_amount
+from app.services.amounts import amount_sign, is_one_time, monthly_amount
 
 
 def _month_start(value: date) -> date:
@@ -157,34 +157,77 @@ def _active_monthly_on(
     month: date,
     history: list[PriceHistory],
 ) -> Decimal:
-    """Monthly amount of item at month start based on history timeline."""
+    """Signed net contribution of item at month start (expense +, income −)."""
     month = _month_start(month)
+    sign = amount_sign(item)
+
+    if is_one_time(item):
+        when = item.start_date
+        if when is None:
+            created = item.created_at.date() if item.created_at else date.today()
+            when = created
+        if _month_start(when) != month:
+            return Decimal("0.00")
+        if item.end_date and _month_start(item.end_date) < month:
+            return Decimal("0.00")
+
+        applicable: PriceHistory | None = None
+        for entry in history:
+            if _month_start(entry.valid_from) <= month:
+                applicable = entry
+            else:
+                break
+        if applicable is not None and applicable.event_type == CostHistoryEvent.ended:
+            # Ended before or in a prior month → no contribution; same-month end still counts
+            if _month_start(applicable.valid_from) < month:
+                return Decimal("0.00")
+        amount = Decimal(applicable.amount) if applicable is not None else Decimal(item.amount)
+        return (amount * sign).quantize(Decimal("0.01"))
+
     if item.start_date and _month_start(item.start_date) > month:
         return Decimal("0.00")
     if item.end_date and _month_start(item.end_date) < month:
         return Decimal("0.00")
 
-    applicable: PriceHistory | None = None
+    applicable = None
     for entry in history:
         if entry.valid_from <= _add_months(month, 1) - timedelta(days=1):
-            # entry valid if its valid_from is on/before end of this month
             if _month_start(entry.valid_from) <= month:
                 applicable = entry
         else:
             break
 
     if applicable is None:
-        # No history yet for this month: treat inactive as 0, else current
         if not item.is_active:
             return Decimal("0.00")
         created = item.created_at.date() if item.created_at else date.today()
         if _month_start(created) > month:
             return Decimal("0.00")
-        return monthly_amount(item)
+        return (monthly_amount(item) * sign).quantize(Decimal("0.01"))
 
     if applicable.event_type == CostHistoryEvent.ended:
         return Decimal("0.00")
-    return Decimal(applicable.monthly_amount)
+    return (Decimal(applicable.monthly_amount) * sign).quantize(Decimal("0.01"))
+
+
+def unsigned_contribution_in_month(
+    item: CostItem,
+    month: date,
+    history: list[PriceHistory],
+) -> Decimal:
+    """Absolute contribution of an item in a month (0 if inactive / not due)."""
+    return abs(_active_monthly_on(item, month, history))
+
+
+def months_in_year(year: int, *, through: date | None = None) -> list[date]:
+    """Month starts for a calendar year, capped at `through` (inclusive)."""
+    through = through or date.today()
+    end_month = 12
+    if year == through.year:
+        end_month = through.month
+    elif year > through.year:
+        return []
+    return [date(year, month, 1) for month in range(1, end_month + 1)]
 
 
 def cost_history_timeline(
@@ -285,8 +328,6 @@ def cost_history_timeline(
         month = _add_months(end_actual, 1)
         for step in range(1, forecast_months + 1):
             predicted = intercept + slope * Decimal(last_idx + step)
-            if predicted < 0:
-                predicted = Decimal("0.00")
             predicted = predicted.quantize(Decimal("0.01"))
             forecast_points.append(
                 {
@@ -323,7 +364,9 @@ def cost_history_timeline(
                 continue
             if entry.valid_from > today:
                 continue
-            monthly = (Decimal(entry.monthly_amount) * factor).quantize(Decimal("0.01"))
+            monthly = (Decimal(entry.monthly_amount) * factor * amount_sign(item)).quantize(
+                Decimal("0.01")
+            )
             events.append(
                 {
                     "date": entry.valid_from.isoformat(),

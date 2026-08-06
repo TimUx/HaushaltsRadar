@@ -58,3 +58,58 @@ export async function apiFetch<T>(
   }
   return response.json() as Promise<T>
 }
+
+export async function apiFetchBlob(
+  path: string,
+  auth = false,
+): Promise<{ blob: Blob; filename: string | null }> {
+  const headers = new Headers()
+  if (auth) {
+    const token = getToken()
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+  }
+  const response = await fetch(`${API_BASE}${path}`, { headers })
+  if (!response.ok) {
+    let detail = response.statusText
+    try {
+      const data = await response.json()
+      detail = data.detail || detail
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(response.status, typeof detail === 'string' ? detail : JSON.stringify(detail))
+  }
+  const disposition = response.headers.get('Content-Disposition') || ''
+  const match = /filename="?([^"]+)"?/i.exec(disposition)
+  return { blob: await response.blob(), filename: match?.[1] ?? null }
+}
+
+export async function apiUploadJsonFile<T>(
+  path: string,
+  file: File,
+  auth = false,
+): Promise<T> {
+  const headers = new Headers()
+  if (auth) {
+    const token = getToken()
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+  }
+  const body = new FormData()
+  body.append('file', file)
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers,
+    body,
+  })
+  if (!response.ok) {
+    let detail = response.statusText
+    try {
+      const data = await response.json()
+      detail = data.detail || detail
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(response.status, typeof detail === 'string' ? detail : JSON.stringify(detail))
+  }
+  return response.json() as Promise<T>
+}

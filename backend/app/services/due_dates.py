@@ -2,7 +2,11 @@ from datetime import date
 
 from app.models import CostItem, PaymentInterval
 
-MONTHLY_ONLY_INTERVALS = {PaymentInterval.monthly, PaymentInterval.bimonthly}
+MONTHLY_ONLY_INTERVALS = {
+    PaymentInterval.monthly,
+    PaymentInterval.bimonthly,
+    PaymentInterval.one_time,
+}
 
 MONTH_NAMES_DE = {
     1: "Januar",

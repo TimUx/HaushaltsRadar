@@ -1,5 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import DeleteIcon from '@mui/icons-material/DeleteOutlined'
+import EditIcon from '@mui/icons-material/EditOutlined'
+import PauseCircleOutlinedIcon from '@mui/icons-material/PauseCircleOutlined'
 import {
   Alert,
   Box,
@@ -8,7 +11,9 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  DialogContentText,
   DialogTitle,
+  Divider,
   FormControl,
   FormControlLabel,
   IconButton,
@@ -25,12 +30,20 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material'
-import DeleteIcon from '@mui/icons-material/DeleteOutlined'
-import EditIcon from '@mui/icons-material/EditOutlined'
+import { useSearchParams } from 'react-router-dom'
 import { categoriesApi, costItemsApi, objectsApi, partiesApi, personsApi, tagsApi } from '../api'
-import { INTERVAL_LABELS, type CostItem, type PaymentInterval, MONTH_LABELS, intervalNeedsDueMonth } from '../api/types'
+import {
+  ENTRY_TYPE_LABELS,
+  INTERVAL_LABELS,
+  MONTH_LABELS,
+  intervalNeedsDueMonth,
+  type CostItem,
+  type EntryType,
+  type PaymentInterval,
+} from '../api/types'
 import { formatCurrency } from '../utils/format'
 import {
   AllocationEditor,
@@ -40,36 +53,54 @@ import {
   emptyAllocation,
   type AllocationDraft,
 } from '../components/AllocationEditor'
+import { MyFinancesButton } from '../components/MyFinancesButton'
+import { useAuth } from '../auth/AuthContext'
+import { costItemBelongsToPerson } from '../utils/myFinances'
 
 const INTERVALS = Object.keys(INTERVAL_LABELS) as PaymentInterval[]
+const ENTRY_TYPES = Object.keys(ENTRY_TYPE_LABELS) as EntryType[]
 
 type FormState = {
   name: string
   amount: string
+  entryType: EntryType
   categoryId: number | ''
   tagIds: number[]
   objectId: number | ''
   interval: PaymentInterval
+  startDate: string
   dueDay: string
   dueMonth: number | ''
   partner: string
   isActive: boolean
   allocations: AllocationDraft[]
+  priceValidFrom: string
+  originalAmount: string
+  originalInterval: PaymentInterval | ''
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
 }
 
 function defaultForm(categoryId: number | '' = ''): FormState {
   return {
     name: '',
     amount: '100',
+    entryType: 'expense',
     categoryId,
     tagIds: [],
     objectId: '',
     interval: 'monthly',
+    startDate: '',
     dueDay: '1',
     dueMonth: '',
     partner: '',
     isActive: true,
     allocations: [emptyAllocation(true)],
+    priceValidFrom: todayIso(),
+    originalAmount: '',
+    originalInterval: '',
   }
 }
 
@@ -77,16 +108,28 @@ function formFromItem(item: CostItem): FormState {
   return {
     name: item.name,
     amount: String(item.amount),
+    entryType: item.entry_type || 'expense',
     categoryId: item.category_id,
     tagIds: (item.tags || []).map((t) => t.id),
     objectId: item.object_id ?? '',
     interval: item.payment_interval,
+    startDate: item.start_date || '',
     dueDay: item.due_day != null ? String(item.due_day) : '',
     dueMonth: item.due_month ?? '',
     partner: item.contract_partner || '',
     isActive: item.is_active,
     allocations: draftsFromAllocations(item.allocations),
+    priceValidFrom: todayIso(),
+    originalAmount: String(item.amount),
+    originalInterval: item.payment_interval,
   }
+}
+
+const HISTORY_EVENT_LABELS: Record<string, string> = {
+  created: 'Angelegt',
+  changed: 'Geändert',
+  ended: 'Beendet',
+  reactivated: 'Reaktiviert',
 }
 
 function formatAllocations(
@@ -111,6 +154,8 @@ function formatAllocations(
 
 export function CostItemsPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { data = [], isLoading, error } = useQuery({
     queryKey: ['cost-items'],
     queryFn: costItemsApi.list,
@@ -136,10 +181,28 @@ export function CostItemsPage() {
     queryFn: tagsApi.list,
   })
 
+  const myFinances = searchParams.get('meine') === '1' && user?.person_id != null
+
+  function setMyFinances(active: boolean) {
+    const next = new URLSearchParams(searchParams)
+    if (active) next.set('meine', '1')
+    else next.delete('meine')
+    setSearchParams(next, { replace: true })
+  }
+
+  const visibleItems = useMemo(() => {
+    if (!myFinances || user?.person_id == null) return data
+    return data.filter(
+      (item) =>
+        item.is_active && costItemBelongsToPerson(item, user.person_id!, objects),
+    )
+  }, [data, myFinances, user?.person_id, objects])
+
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<FormState>(defaultForm())
   const [formError, setFormError] = useState<string | null>(null)
+  const [permanentTarget, setPermanentTarget] = useState<CostItem | null>(null)
 
   const categoryName = useMemo(() => {
     const map = new Map(categories.map((c) => [c.id, c.name]))
@@ -156,18 +219,47 @@ export function CostItemsPage() {
     return (id: number) => map.get(id) || String(id)
   }, [parties])
 
+  const isOneTime = form.interval === 'one_time'
+  const priceRelevantChange =
+    editingId != null &&
+    ((form.originalAmount !== '' && form.amount !== form.originalAmount) ||
+      (form.originalInterval !== '' && form.interval !== form.originalInterval))
+  const amountChanged = priceRelevantChange
+
+  const { data: priceHistory = [], refetch: refetchPriceHistory } = useQuery({
+    queryKey: ['cost-item-price-history', editingId],
+    queryFn: () => costItemsApi.listPriceHistory(editingId!),
+    enabled: open && editingId != null,
+  })
+
+  const [historyAmount, setHistoryAmount] = useState('')
+  const [historyFrom, setHistoryFrom] = useState(todayIso())
+  const [historyNotes, setHistoryNotes] = useState('')
+
+  async function invalidateCostQueries() {
+    await queryClient.invalidateQueries({ queryKey: ['cost-items'] })
+    await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    await queryClient.invalidateQueries({ queryKey: ['cost-overview'] })
+    await queryClient.invalidateQueries({ queryKey: ['cost-history'] })
+    if (editingId != null) {
+      await queryClient.invalidateQueries({ queryKey: ['cost-item-price-history', editingId] })
+    }
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: form.name,
         amount: Number(form.amount),
+        entry_type: form.entryType,
         category_id: form.categoryId,
         tag_ids: form.tagIds,
         object_id: form.objectId === '' ? null : form.objectId,
         payment_interval: form.interval,
-        due_day: form.dueDay ? Number(form.dueDay) : null,
+        start_date: form.startDate || (isOneTime ? null : form.priceValidFrom || null),
+        due_day: isOneTime ? null : form.dueDay ? Number(form.dueDay) : null,
         due_month:
-          intervalNeedsDueMonth(form.interval) && form.dueMonth !== ''
+          !isOneTime && intervalNeedsDueMonth(form.interval) && form.dueMonth !== ''
             ? Number(form.dueMonth)
             : null,
         contract_partner: form.partner || null,
@@ -178,6 +270,9 @@ export function CostItemsPage() {
       if (editingId == null) {
         return costItemsApi.create(payload)
       }
+      if (priceRelevantChange) {
+        payload.price_valid_from = form.priceValidFrom || todayIso()
+      }
       return costItemsApi.update(editingId, payload)
     },
     onSuccess: async () => {
@@ -185,20 +280,52 @@ export function CostItemsPage() {
       setEditingId(null)
       setForm(defaultForm())
       setFormError(null)
-      await queryClient.invalidateQueries({ queryKey: ['cost-items'] })
-      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      await queryClient.invalidateQueries({ queryKey: ['cost-overview'] })
-      await queryClient.invalidateQueries({ queryKey: ['cost-history'] })
+      await invalidateCostQueries()
     },
   })
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => costItemsApi.remove(id),
+  const addHistoryMutation = useMutation({
+    mutationFn: async () => {
+      if (editingId == null) throw new Error('Kein Posten gewählt')
+      return costItemsApi.addPriceHistory(editingId, {
+        amount: Number(historyAmount),
+        valid_from: historyFrom,
+        notes: historyNotes || null,
+        sync_current_amount: false,
+      })
+    },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['cost-items'] })
-      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      await queryClient.invalidateQueries({ queryKey: ['cost-overview'] })
-      await queryClient.invalidateQueries({ queryKey: ['cost-history'] })
+      setHistoryAmount('')
+      setHistoryNotes('')
+      setHistoryFrom(todayIso())
+      await refetchPriceHistory()
+      await invalidateCostQueries()
+    },
+  })
+
+  const removeHistoryMutation = useMutation({
+    mutationFn: (entryId: number) => {
+      if (editingId == null) throw new Error('Kein Posten gewählt')
+      return costItemsApi.removePriceHistory(editingId, entryId)
+    },
+    onSuccess: async () => {
+      await refetchPriceHistory()
+      await invalidateCostQueries()
+    },
+  })
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id: number) => costItemsApi.deactivate(id),
+    onSuccess: async () => {
+      await invalidateCostQueries()
+    },
+  })
+
+  const permanentDeleteMutation = useMutation({
+    mutationFn: (id: number) => costItemsApi.removePermanent(id),
+    onSuccess: async () => {
+      setPermanentTarget(null)
+      await invalidateCostQueries()
     },
   })
 
@@ -219,7 +346,16 @@ export function CostItemsPage() {
   function onSubmit(event: FormEvent) {
     event.preventDefault()
     if (form.categoryId === '') return
-    if (intervalNeedsDueMonth(form.interval) && form.dueDay && form.dueMonth === '') {
+    if (form.interval === 'one_time' && !form.startDate) {
+      setFormError('Bitte Datum für den einmaligen Posten angeben.')
+      return
+    }
+    if (
+      !isOneTime &&
+      intervalNeedsDueMonth(form.interval) &&
+      form.dueDay &&
+      form.dueMonth === ''
+    ) {
       setFormError('Bitte Fälligkeitsmonat angeben.')
       return
     }
@@ -240,14 +376,23 @@ export function CostItemsPage() {
 
   return (
     <Stack spacing={2}>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <MyFinancesButton active={myFinances} onToggle={() => setMyFinances(!myFinances)} />
         <Button variant="contained" onClick={openCreate}>
-          Kosten hinzufügen
+          Posten hinzufügen
         </Button>
       </Box>
-      {error && <Alert severity="error">Kosten konnten nicht geladen werden.</Alert>}
-      {saveMutation.error && (
-        <Alert severity="error">{(saveMutation.error as Error).message}</Alert>
+      {error && <Alert severity="error">Posten konnten nicht geladen werden.</Alert>}
+      {(saveMutation.error || deactivateMutation.error || permanentDeleteMutation.error) && (
+        <Alert severity="error">
+          {
+            (
+              (saveMutation.error ||
+                deactivateMutation.error ||
+                permanentDeleteMutation.error) as Error
+            ).message
+          }
+        </Alert>
       )}
       {isLoading ? (
         <Typography color="text.secondary">Laden…</Typography>
@@ -256,6 +401,7 @@ export function CostItemsPage() {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
+              <TableCell>Art</TableCell>
               <TableCell>Kategorie</TableCell>
               <TableCell>Tags</TableCell>
               <TableCell>Verteilung</TableCell>
@@ -267,42 +413,92 @@ export function CostItemsPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.map((item) => (
-              <TableRow key={item.id} sx={{ opacity: item.is_active ? 1 : 0.55 }}>
-                <TableCell>{item.name}</TableCell>
-                <TableCell>{categoryName(item.category_id)}</TableCell>
-                <TableCell>
-                  {(item.tags || []).map((t) => t.name).join(', ') || '–'}
-                </TableCell>
-                <TableCell>{formatAllocations(item, personName, partyName)}</TableCell>
-                <TableCell>{INTERVAL_LABELS[item.payment_interval]}</TableCell>
-                <TableCell>{item.is_active ? 'Aktiv' : 'Entfernt'}</TableCell>
-                <TableCell align="right">{formatCurrency(item.amount, item.currency)}</TableCell>
-                <TableCell align="right">{formatCurrency(item.monthly_amount, item.currency)}</TableCell>
-                <TableCell align="right">
-                  <IconButton aria-label="Bearbeiten" onClick={() => openEdit(item)} size="small">
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  {item.is_active && (
-                    <IconButton
-                      aria-label="Entfernen"
-                      onClick={() => deleteMutation.mutate(item.id)}
-                      size="small"
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
+            {visibleItems.map((item) => {
+              const income = item.entry_type === 'income'
+              return (
+                <TableRow key={item.id} sx={{ opacity: item.is_active ? 1 : 0.55 }}>
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{ENTRY_TYPE_LABELS[item.entry_type || 'expense']}</TableCell>
+                  <TableCell>{categoryName(item.category_id)}</TableCell>
+                  <TableCell>
+                    {(item.tags || []).map((t) => t.name).join(', ') || '–'}
+                  </TableCell>
+                  <TableCell>{formatAllocations(item, personName, partyName)}</TableCell>
+                  <TableCell>{INTERVAL_LABELS[item.payment_interval]}</TableCell>
+                  <TableCell>{item.is_active ? 'Aktiv' : 'Inaktiv'}</TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{ color: income ? 'success.main' : 'inherit', fontWeight: income ? 600 : undefined }}
+                  >
+                    {income ? '−' : ''}
+                    {formatCurrency(item.amount, item.currency)}
+                  </TableCell>
+                  <TableCell align="right">
+                    {item.payment_interval === 'one_time'
+                      ? '–'
+                      : formatCurrency(item.monthly_amount, item.currency)}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Bearbeiten">
+                      <IconButton aria-label="Bearbeiten" onClick={() => openEdit(item)} size="small">
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    {item.is_active && (
+                      <Tooltip title="Deaktivieren (bleibt in Historie)">
+                        <IconButton
+                          aria-label="Deaktivieren"
+                          onClick={() => deactivateMutation.mutate(item.id)}
+                          size="small"
+                        >
+                          <PauseCircleOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    <Tooltip title="Endgültig löschen">
+                      <IconButton
+                        aria-label="Endgültig löschen"
+                        onClick={() => setPermanentTarget(item)}
+                        size="small"
+                        color="error"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       )}
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={Boolean(permanentTarget)} onClose={() => setPermanentTarget(null)}>
+        <DialogTitle>Endgültig löschen?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            „{permanentTarget?.name}“ wird unwiderruflich gelöscht und erscheint nicht mehr in der
+            Historie. Für gekündigte Verträge besser deaktivieren.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPermanentTarget(null)}>Abbrechen</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={permanentDeleteMutation.isPending || !permanentTarget}
+            onClick={() => {
+              if (permanentTarget) permanentDeleteMutation.mutate(permanentTarget.id)
+            }}
+          >
+            Endgültig löschen
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
         <form onSubmit={onSubmit}>
           <DialogTitle>
-            {editingId == null ? 'Neue Kostenposition' : 'Kostenposition bearbeiten'}
+            {editingId == null ? 'Neuen Posten anlegen' : 'Posten bearbeiten'}
           </DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
@@ -314,6 +510,22 @@ export function CostItemsPage() {
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               />
+              <FormControl fullWidth required>
+                <InputLabel>Art</InputLabel>
+                <Select
+                  label="Art"
+                  value={form.entryType}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, entryType: e.target.value as EntryType }))
+                  }
+                >
+                  {ENTRY_TYPES.map((key) => (
+                    <MenuItem key={key} value={key}>
+                      {ENTRY_TYPE_LABELS[key]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <TextField
                 label="Betrag"
                 type="number"
@@ -322,7 +534,26 @@ export function CostItemsPage() {
                 value={form.amount}
                 onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
                 slotProps={{ htmlInput: { min: 0.01, step: 0.01 } }}
+                helperText="Betrag immer positiv; Art steuert Ausgabe oder Einnahme"
               />
+              {!isOneTime && (
+                <TextField
+                  label={editingId == null ? 'Gültig ab' : 'Preisänderung gültig ab'}
+                  type="date"
+                  fullWidth
+                  required={amountChanged}
+                  value={form.priceValidFrom}
+                  onChange={(e) => setForm((f) => ({ ...f, priceValidFrom: e.target.value }))}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  helperText={
+                    editingId == null
+                      ? 'Ab diesem Datum gilt der Betrag in Historie und Jahresauswertung'
+                      : amountChanged
+                        ? 'Wichtig: legt fest, ab wann der neue Betrag in vergangenen Jahren gilt'
+                        : 'Bei Betragsänderung: Stichtag für den Preisverlauf'
+                  }
+                />
+              )}
               <FormControl fullWidth required>
                 <InputLabel>Kategorie</InputLabel>
                 <Select
@@ -408,6 +639,10 @@ export function CostItemsPage() {
                             ? 1
                             : f.dueMonth
                           : '',
+                      startDate:
+                        interval === 'one_time' && !f.startDate
+                          ? new Date().toISOString().slice(0, 10)
+                          : f.startDate,
                     }))
                   }}
                 >
@@ -418,39 +653,52 @@ export function CostItemsPage() {
                   ))}
                 </Select>
               </FormControl>
-              <Box sx={{ display: 'flex', gap: 2 }}>
+              {isOneTime ? (
                 <TextField
-                  label="Fälligkeitstag"
-                  type="number"
+                  label="Datum"
+                  type="date"
+                  required
                   fullWidth
-                  value={form.dueDay}
-                  onChange={(e) => setForm((f) => ({ ...f, dueDay: e.target.value }))}
-                  slotProps={{ htmlInput: { min: 1, max: 31 } }}
-                  helperText={
-                    intervalNeedsDueMonth(form.interval)
-                      ? 'Tag im Fälligkeitsmonat'
-                      : 'Tag im Monat'
-                  }
+                  value={form.startDate}
+                  onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  helperText="Wirkt nur in diesem Monat (Nachzahlung, Erstattung, …)"
                 />
-                {intervalNeedsDueMonth(form.interval) && (
-                  <FormControl fullWidth required>
-                    <InputLabel>Fälligkeitsmonat</InputLabel>
-                    <Select
-                      label="Fälligkeitsmonat"
-                      value={form.dueMonth === '' ? '' : form.dueMonth}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, dueMonth: Number(e.target.value) }))
-                      }
-                    >
-                      {Object.entries(MONTH_LABELS).map(([value, label]) => (
-                        <MenuItem key={value} value={Number(value)}>
-                          {label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
-              </Box>
+              ) : (
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Fälligkeitstag"
+                    type="number"
+                    fullWidth
+                    value={form.dueDay}
+                    onChange={(e) => setForm((f) => ({ ...f, dueDay: e.target.value }))}
+                    slotProps={{ htmlInput: { min: 1, max: 31 } }}
+                    helperText={
+                      intervalNeedsDueMonth(form.interval)
+                        ? 'Tag im Fälligkeitsmonat'
+                        : 'Tag im Monat'
+                    }
+                  />
+                  {intervalNeedsDueMonth(form.interval) && (
+                    <FormControl fullWidth required>
+                      <InputLabel>Fälligkeitsmonat</InputLabel>
+                      <Select
+                        label="Fälligkeitsmonat"
+                        value={form.dueMonth === '' ? '' : form.dueMonth}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, dueMonth: Number(e.target.value) }))
+                        }
+                      >
+                        {Object.entries(MONTH_LABELS).map(([value, label]) => (
+                          <MenuItem key={value} value={Number(value)}>
+                            {label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                </Box>
+              )}
               <TextField
                 label="Vertragspartner"
                 fullWidth
@@ -466,6 +714,101 @@ export function CostItemsPage() {
                 }
                 label="Aktiv"
               />
+              <Typography variant="caption" color="text.secondary">
+                Inaktiv = gekündigt (bleibt in Historie). Falscheingaben endgültig löschen.
+              </Typography>
+              {editingId != null && (
+                <>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="subtitle2">Preisverlauf</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Jeder Eintrag gilt ab dem Datum bis zur nächsten Änderung — so bleiben
+                    frühere Jahre in Dashboard und Historie korrekt.
+                  </Typography>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Gültig ab</TableCell>
+                        <TableCell>Ereignis</TableCell>
+                        <TableCell align="right">Betrag</TableCell>
+                        <TableCell align="right">Monatlich</TableCell>
+                        <TableCell>Hinweis</TableCell>
+                        <TableCell align="right" />
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {priceHistory.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6}>Noch keine Verlaufseinträge</TableCell>
+                        </TableRow>
+                      )}
+                      {priceHistory.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell>{entry.valid_from}</TableCell>
+                          <TableCell>
+                            {HISTORY_EVENT_LABELS[entry.event_type] || entry.event_type}
+                          </TableCell>
+                          <TableCell align="right">{formatCurrency(entry.amount)}</TableCell>
+                          <TableCell align="right">{formatCurrency(entry.monthly_amount)}</TableCell>
+                          <TableCell>{entry.notes || '–'}</TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              aria-label="Verlaufseintrag löschen"
+                              onClick={() => removeHistoryMutation.mutate(entry.id)}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'flex-start' }}>
+                    <TextField
+                      label="Betrag"
+                      type="number"
+                      size="small"
+                      value={historyAmount}
+                      onChange={(e) => setHistoryAmount(e.target.value)}
+                      slotProps={{ htmlInput: { min: 0.01, step: 0.01 } }}
+                      sx={{ width: 120 }}
+                    />
+                    <TextField
+                      label="Gültig ab"
+                      type="date"
+                      size="small"
+                      value={historyFrom}
+                      onChange={(e) => setHistoryFrom(e.target.value)}
+                      slotProps={{ inputLabel: { shrink: true } }}
+                      sx={{ width: 160 }}
+                    />
+                    <TextField
+                      label="Hinweis"
+                      size="small"
+                      value={historyNotes}
+                      onChange={(e) => setHistoryNotes(e.target.value)}
+                      sx={{ flex: 1, minWidth: 140 }}
+                    />
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={!historyAmount || !historyFrom || addHistoryMutation.isPending}
+                      onClick={() => addHistoryMutation.mutate()}
+                    >
+                      Preisstand hinzufügen
+                    </Button>
+                  </Box>
+                  {(addHistoryMutation.error || removeHistoryMutation.error) && (
+                    <Alert severity="error">
+                      {
+                        ((addHistoryMutation.error || removeHistoryMutation.error) as Error)
+                          .message
+                      }
+                    </Alert>
+                  )}
+                </>
+              )}
               <AllocationEditor
                 persons={persons}
                 parties={parties}

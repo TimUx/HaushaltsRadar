@@ -9,6 +9,7 @@ from app.models import (
     CostAllocation,
     CostHistoryEvent,
     CostItem,
+    EntryType,
     ObjectEntity,
     PaymentInterval,
     Person,
@@ -37,6 +38,8 @@ def seed_sample_data(db: Session) -> None:
     tag_strom = db.query(Tag).filter(Tag.name == "Strom").one()
     tag_haft = db.query(Tag).filter(Tag.name == "Haftpflicht").one()
     tag_inet = db.query(Tag).filter(Tag.name == "Internet").one()
+    tag_wasser = db.query(Tag).filter(Tag.name == "Wasser").one()
+    tag_pv = db.query(Tag).filter(Tag.name == "PV").one()
 
     strom = CostItem(
         name="Stromvertrag",
@@ -46,6 +49,7 @@ def seed_sample_data(db: Session) -> None:
         contract_partner="Stadtwerke Musterstadt",
         amount=Decimal("145.00"),
         currency="EUR",
+        entry_type=EntryType.expense,
         payment_interval=PaymentInterval.monthly,
         start_date=date(2025, 1, 1),
         due_day=15,
@@ -58,6 +62,7 @@ def seed_sample_data(db: Session) -> None:
         contract_partner="Allianz",
         amount=Decimal("84.00"),
         currency="EUR",
+        entry_type=EntryType.expense,
         payment_interval=PaymentInterval.annual,
         due_day=1,
         due_month=3,
@@ -71,12 +76,55 @@ def seed_sample_data(db: Session) -> None:
         contract_partner="Telekom",
         amount=Decimal("49.95"),
         currency="EUR",
+        entry_type=EntryType.expense,
         payment_interval=PaymentInterval.monthly,
         due_day=1,
         is_active=True,
         tags=[tag_inet],
     )
-    db.add_all([strom, haftpflicht, internet])
+    nachzahlung = CostItem(
+        name="Strom Nachzahlung",
+        description="Jahresabrechnung Nachzahlung",
+        category_id=cat_haus.id,
+        object_id=haus.id,
+        contract_partner="Stadtwerke Musterstadt",
+        amount=Decimal("218.40"),
+        currency="EUR",
+        entry_type=EntryType.expense,
+        payment_interval=PaymentInterval.one_time,
+        start_date=date(2026, 3, 15),
+        is_active=True,
+        tags=[tag_strom],
+    )
+    erstattung = CostItem(
+        name="Wasser Erstattung",
+        description="Gutschrift Jahresabrechnung",
+        category_id=cat_haus.id,
+        object_id=haus.id,
+        amount=Decimal("42.50"),
+        currency="EUR",
+        entry_type=EntryType.income,
+        payment_interval=PaymentInterval.one_time,
+        start_date=date(2026, 4, 10),
+        is_active=True,
+        tags=[tag_wasser],
+    )
+    pv = CostItem(
+        name="PV Einspeisung",
+        description="Vergütung Überschusseinspeisung",
+        category_id=cat_haus.id,
+        object_id=haus.id,
+        contract_partner="Netzbetreiber",
+        amount=Decimal("65.00"),
+        currency="EUR",
+        entry_type=EntryType.income,
+        payment_interval=PaymentInterval.monthly,
+        start_date=date(2025, 6, 1),
+        due_day=20,
+        is_active=True,
+        tags=[tag_pv],
+    )
+    db.add_all([strom, haftpflicht, internet, nachzahlung, erstattung, pv])
     db.flush()
 
     db.add_all(
@@ -92,6 +140,9 @@ def seed_sample_data(db: Session) -> None:
                 cost_item_id=haftpflicht.id, person_id=frau.id, is_household=False, percentage=Decimal("50.00")
             ),
             CostAllocation(cost_item_id=internet.id, is_household=True, percentage=Decimal("100.00")),
+            CostAllocation(cost_item_id=nachzahlung.id, is_household=True, percentage=Decimal("100.00")),
+            CostAllocation(cost_item_id=erstattung.id, is_household=True, percentage=Decimal("100.00")),
+            CostAllocation(cost_item_id=pv.id, is_household=True, percentage=Decimal("100.00")),
         ]
     )
 
@@ -135,6 +186,30 @@ def seed_sample_data(db: Session) -> None:
                 monthly_amount=Decimal("49.95"),
                 valid_from=date(2025, 6, 1),
                 event_type=CostHistoryEvent.created,
+            ),
+            PriceHistory(
+                cost_item_id=nachzahlung.id,
+                amount=Decimal("218.40"),
+                monthly_amount=Decimal("0.00"),
+                valid_from=date(2026, 3, 15),
+                event_type=CostHistoryEvent.created,
+                notes="Einmalige Nachzahlung",
+            ),
+            PriceHistory(
+                cost_item_id=erstattung.id,
+                amount=Decimal("42.50"),
+                monthly_amount=Decimal("0.00"),
+                valid_from=date(2026, 4, 10),
+                event_type=CostHistoryEvent.created,
+                notes="Einmalige Erstattung",
+            ),
+            PriceHistory(
+                cost_item_id=pv.id,
+                amount=Decimal("65.00"),
+                monthly_amount=Decimal("65.00"),
+                valid_from=date(2025, 6, 1),
+                event_type=CostHistoryEvent.created,
+                notes="PV Einspeisevergütung",
             ),
         ]
     )

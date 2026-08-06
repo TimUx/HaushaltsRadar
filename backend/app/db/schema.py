@@ -124,6 +124,42 @@ def ensure_schema(engine: Engine) -> None:
             END IF;
         END $$
         """,
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_interval')
+               AND NOT EXISTS (
+                   SELECT 1 FROM pg_enum e
+                   JOIN pg_type t ON t.oid = e.enumtypid
+                   WHERE t.typname = 'payment_interval' AND e.enumlabel = 'one_time'
+               ) THEN
+                ALTER TYPE payment_interval ADD VALUE 'one_time';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'entry_type') THEN
+                CREATE TYPE entry_type AS ENUM ('expense', 'income');
+            END IF;
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'cost_items' AND column_name = 'entry_type'
+            ) THEN
+                ALTER TABLE cost_items
+                    ADD COLUMN entry_type entry_type NOT NULL DEFAULT 'expense'::entry_type;
+            END IF;
+        END $$
+        """,
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'person_id'
+            ) THEN
+                ALTER TABLE users
+                    ADD COLUMN person_id INTEGER REFERENCES persons(id) ON DELETE SET NULL;
+                CREATE INDEX IF NOT EXISTS ix_users_person_id ON users(person_id);
+            END IF;
+        END $$
+        """,
     ]
     with engine.begin() as conn:
         for statement in statements:

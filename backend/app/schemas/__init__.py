@@ -4,7 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import PaymentInterval
+from app.models import EntryType, PaymentInterval
 
 
 class ORMModel(BaseModel):
@@ -34,6 +34,7 @@ class UserRead(ORMModel):
     username: str
     role: str
     is_active: bool
+    person_id: Optional[int] = None
     created_at: datetime
 
 
@@ -42,6 +43,7 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=6, max_length=200)
     role: str = "user"
     is_active: bool = True
+    person_id: Optional[int] = None
 
 
 class UserUpdate(BaseModel):
@@ -49,6 +51,7 @@ class UserUpdate(BaseModel):
     password: Optional[str] = Field(default=None, min_length=6, max_length=200)
     role: Optional[str] = None
     is_active: Optional[bool] = None
+    person_id: Optional[int] = None
 
 
 # --- Person ---
@@ -210,6 +213,7 @@ class CostItemBase(BaseModel):
     contract_partner: Optional[str] = None
     amount: Decimal = Field(gt=0)
     currency: str = "EUR"
+    entry_type: EntryType = EntryType.expense
     payment_interval: PaymentInterval
     custom_interval_months: Optional[int] = Field(default=None, ge=1)
     start_date: Optional[date] = None
@@ -233,6 +237,7 @@ class CostItemUpdate(BaseModel):
     contract_partner: Optional[str] = None
     amount: Optional[Decimal] = Field(default=None, gt=0)
     currency: Optional[str] = None
+    entry_type: Optional[EntryType] = None
     payment_interval: Optional[PaymentInterval] = None
     custom_interval_months: Optional[int] = Field(default=None, ge=1)
     start_date: Optional[date] = None
@@ -243,6 +248,9 @@ class CostItemUpdate(BaseModel):
     is_active: Optional[bool] = None
     tag_ids: Optional[list[int]] = None
     allocations: Optional[list[CostAllocationCreate]] = None
+    # Effective date for amount/interval changes in price history (default: today)
+    price_valid_from: Optional[date] = None
+    price_change_notes: Optional[str] = None
 
 
 class CostItemRead(CostItemBase, ORMModel):
@@ -303,6 +311,16 @@ class PriceHistoryBase(BaseModel):
 
 class PriceHistoryCreate(PriceHistoryBase):
     pass
+
+
+class PriceHistoryEntryCreate(BaseModel):
+    """Create a price point for an existing cost item (cost_item_id from path)."""
+
+    amount: Decimal = Field(gt=0)
+    valid_from: date
+    notes: Optional[str] = None
+    event_type: str = "changed"
+    sync_current_amount: bool = True
 
 
 class PriceHistoryRead(PriceHistoryBase, ORMModel):
@@ -387,11 +405,60 @@ class UpcomingDue(BaseModel):
     due_label: str
     amount: Decimal
     payment_interval: PaymentInterval
+    entry_type: EntryType = EntryType.expense
+
+
+class BreakdownResponse(BaseModel):
+    group_by: str
+    items: list[NamedAmount]
+
+
+class HierarchyNode(BaseModel):
+    id: int | str | None = None
+    name: str
+    value: Decimal
+    children: list["HierarchyNode"] = []
+
+
+class HierarchyResponse(BaseModel):
+    mode: str
+    nodes: list[HierarchyNode]
+
+
+class HeatmapResponse(BaseModel):
+    year: int
+    categories: list[str]
+    months: list[str]
+    values: list[list[float]]
+
+
+class SankeyNode(BaseModel):
+    name: str
+
+
+class SankeyLink(BaseModel):
+    source: str
+    target: str
+    value: float
+
+
+class FlowResponse(BaseModel):
+    nodes: list[SankeyNode]
+    links: list[SankeyLink]
 
 
 class DashboardSummary(BaseModel):
+    year: int
     monthly_fixed_costs: Decimal
     yearly_fixed_costs: Decimal
+    monthly_income: Decimal
+    yearly_income: Decimal
+    monthly_net: Decimal
+    yearly_net: Decimal
+    ytd_fixed_costs: Decimal
+    ytd_income: Decimal
+    one_time_expense: Decimal
+    one_time_income: Decimal
     active_contracts: int
     active_cost_items: int
     costs_by_person: list[NamedAmount]

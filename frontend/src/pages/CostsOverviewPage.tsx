@@ -14,9 +14,13 @@ import {
 } from '@mui/material'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { deDE } from '@mui/x-data-grid/locales'
+import { useSearchParams } from 'react-router-dom'
 import { analyticsApi } from '../api'
 import type { CostOverviewRow } from '../api/types'
 import { formatCurrency } from '../utils/format'
+import { MyFinancesButton } from '../components/MyFinancesButton'
+import { useAuth } from '../auth/AuthContext'
+import { overviewRowBelongsToPerson } from '../utils/myFinances'
 
 function moneyValue(value: string | number | null | undefined): number {
   if (value == null) return 0
@@ -24,8 +28,20 @@ function moneyValue(value: string | number | null | undefined): number {
 }
 
 export function CostsOverviewPage() {
+  const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [categoryId, setCategoryId] = useState<number | ''>('')
   const [tagId, setTagId] = useState<number | ''>('')
+  const [entryType, setEntryType] = useState<'' | 'expense' | 'income'>('')
+
+  const myFinances = searchParams.get('meine') === '1' && user?.person_id != null
+
+  function setMyFinances(active: boolean) {
+    const next = new URLSearchParams(searchParams)
+    if (active) next.set('meine', '1')
+    else next.delete('meine')
+    setSearchParams(next, { replace: true })
+  }
 
   const { data = [], isLoading, error } = useQuery({
     queryKey: ['cost-overview'],
@@ -40,15 +56,20 @@ export function CostsOverviewPage() {
     return data.filter((row) => {
       if (categoryId !== '' && row.category_id !== categoryId) return false
       if (tagId !== '' && !(row.tag_ids || []).includes(tagId)) return false
+      if (entryType !== '' && row.entry_type !== entryType) return false
+      if (myFinances && user?.person_id != null && !overviewRowBelongsToPerson(row, user.person_id)) {
+        return false
+      }
       return true
     })
-  }, [data, categoryId, tagId])
+  }, [data, categoryId, tagId, entryType, myFinances, user?.person_id])
 
-  const hasFilter = categoryId !== '' || tagId !== ''
+  const hasFilter = categoryId !== '' || tagId !== '' || entryType !== '' || myFinances
 
   const columns = useMemo<GridColDef<CostOverviewRow>[]>(
     () => [
       { field: 'name', headerName: 'Kostenposition', flex: 1.2, minWidth: 160 },
+      { field: 'entry_type_label', headerName: 'Art', width: 110 },
       { field: 'category', headerName: 'Kategorie', flex: 0.8, minWidth: 120 },
       { field: 'tags', headerName: 'Tags', flex: 1, minWidth: 140 },
       { field: 'object', headerName: 'Objekt', flex: 0.8, minWidth: 120 },
@@ -124,6 +145,18 @@ export function CostsOverviewPage() {
   return (
     <Stack spacing={1.5} sx={{ height: { xs: 600, md: 'calc(100vh - 140px)' } }}>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'flex-end' }}>
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Art</InputLabel>
+          <Select
+            label="Art"
+            value={entryType}
+            onChange={(e) => setEntryType(e.target.value as '' | 'expense' | 'income')}
+          >
+            <MenuItem value="">Alle</MenuItem>
+            <MenuItem value="expense">Ausgabe</MenuItem>
+            <MenuItem value="income">Einnahme</MenuItem>
+          </Select>
+        </FormControl>
         <FormControl size="small" sx={{ minWidth: 150 }}>
           <InputLabel>Kategorie</InputLabel>
           <Select
@@ -160,12 +193,15 @@ export function CostsOverviewPage() {
             ))}
           </Select>
         </FormControl>
+        <MyFinancesButton active={myFinances} onToggle={() => setMyFinances(!myFinances)} />
         {hasFilter && (
           <Button
             size="small"
             onClick={() => {
               setCategoryId('')
               setTagId('')
+              setEntryType('')
+              setMyFinances(false)
             }}
           >
             Zurücksetzen

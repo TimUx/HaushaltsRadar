@@ -5,6 +5,7 @@ import { INTERVAL_LABELS } from '../api/types'
 import { formatCurrency } from './format'
 
 export type DashboardPdfFilters = {
+  year?: number | null
   objectName?: string | null
   shareLabel?: string | null
   categoryName?: string | null
@@ -89,6 +90,8 @@ export function exportDashboardPdf(
   y += 7
 
   const filterParts: string[] = []
+  if (filters.year != null) filterParts.push(`Jahr: ${filters.year}`)
+  else if (data.year != null) filterParts.push(`Jahr: ${data.year}`)
   if (filters.objectName) filterParts.push(`Objekt: ${filters.objectName}`)
   if (filters.categoryName) filterParts.push(`Kategorie: ${filters.categoryName}`)
   if (filters.tagName) filterParts.push(`Tag: ${filters.tagName}`)
@@ -128,13 +131,37 @@ export function exportDashboardPdf(
       [
         'Monatliche Fixkosten',
         money(data.monthly_fixed_costs),
-        'Jährliche Fixkosten',
+        'Monatliche Einnahmen',
+        money(data.monthly_income),
+      ],
+      [
+        'Monatliches Netto',
+        money(data.monthly_net),
+        `Jahresausgaben ${data.year}`,
         money(data.yearly_fixed_costs),
+      ],
+      [
+        `Jahreseinnahmen ${data.year}`,
+        money(data.yearly_income),
+        `Jahresnetto ${data.year}`,
+        money(data.yearly_net),
+      ],
+      [
+        `Bisher ${data.year} (Ausgaben)`,
+        money(data.ytd_fixed_costs),
+        `Bisher ${data.year} (Einnahmen)`,
+        money(data.ytd_income),
+      ],
+      [
+        `Einmalig ${data.year}`,
+        money(data.one_time_expense),
+        `Erstattungen ${data.year}`,
+        money(data.one_time_income),
       ],
       [
         'Aktive Verträge',
         String(data.active_contracts),
-        'Kostenpositionen',
+        'Positionen',
         String(data.active_cost_items),
       ],
     ],

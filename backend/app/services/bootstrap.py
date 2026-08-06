@@ -38,6 +38,7 @@ DEFAULT_TAGS: list[str] = [
     "Medikamente",
     "Internet",
     "Mobilfunk",
+    "PV",
 ]
 
 

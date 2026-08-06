@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Alert,
@@ -23,26 +23,60 @@ import {
 } from '@mui/material'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdfOutlined'
 import ReactECharts from 'echarts-for-react'
+import { useSearchParams, Link as RouterLink } from 'react-router-dom'
 import { analyticsApi } from '../api'
 import { formatCurrency } from '../utils/format'
 import { exportDashboardPdf } from '../utils/exportDashboardPdf'
 import { INTERVAL_LABELS } from '../api/types'
+import { MyFinancesButton } from '../components/MyFinancesButton'
+import { useAuth } from '../auth/AuthContext'
+import { buildBarOption, buildPieOption } from '../charts'
 
 function KpiPanel({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <Card>
-      <CardContent>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
+    <Card sx={{ height: '100%' }}>
+      <CardContent
+        sx={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.5,
+          py: 2,
+          '&:last-child': { pb: 2 },
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
           {label}
         </Typography>
-        <Typography variant="h5">{value}</Typography>
-        {hint && (
-          <Typography variant="caption" color="text.secondary">
+        <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: '-0.02em' }}>
+          {value}
+        </Typography>
+        {hint ? (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 'auto' }}>
             {hint}
           </Typography>
+        ) : (
+          <Box sx={{ minHeight: 18 }} />
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function KpiSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Stack spacing={1.25}>
+      <Typography
+        variant="overline"
+        color="text.secondary"
+        sx={{ letterSpacing: '0.08em', lineHeight: 1 }}
+      >
+        {title}
+      </Typography>
+      <Grid container spacing={2}>
+        {children}
+      </Grid>
+    </Stack>
   )
 }
 
@@ -57,13 +91,42 @@ const selectSx = {
 
 export function DashboardPage() {
   const theme = useTheme()
+  const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const currentYear = new Date().getFullYear()
+  const [year, setYear] = useState(currentYear)
   const [objectId, setObjectId] = useState<number | ''>('')
   const [shareFilter, setShareFilter] = useState<ShareFilter>('')
   const [categoryId, setCategoryId] = useState<number | ''>('')
   const [tagId, setTagId] = useState<number | ''>('')
 
+  const myPersonFilter: ShareFilter | null =
+    user?.person_id != null ? `person:${user.person_id}` : null
+  const meineRequested = searchParams.get('meine') === '1'
+  const myFinancesActive =
+    myPersonFilter != null && (shareFilter === myPersonFilter || meineRequested)
+
+  useEffect(() => {
+    if (meineRequested && myPersonFilter && shareFilter !== myPersonFilter) {
+      setShareFilter(myPersonFilter)
+    }
+  }, [meineRequested, myPersonFilter, shareFilter])
+
+  function setMyFinances(active: boolean) {
+    const next = new URLSearchParams(searchParams)
+    if (active && myPersonFilter) {
+      next.set('meine', '1')
+      setShareFilter(myPersonFilter)
+    } else {
+      next.delete('meine')
+      if (myPersonFilter && shareFilter === myPersonFilter) setShareFilter('')
+    }
+    setSearchParams(next, { replace: true })
+  }
+
   const filters = useMemo(() => {
     const base = {
+      year,
       objectId: objectId === '' ? null : objectId,
       personId: null as number | null,
       partyId: null as number | null,
@@ -75,12 +138,18 @@ export function DashboardPage() {
     else if (shareFilter.startsWith('person:')) base.personId = Number(shareFilter.slice(7))
     else if (shareFilter.startsWith('party:')) base.partyId = Number(shareFilter.slice(6))
     return base
-  }, [objectId, shareFilter, categoryId, tagId])
+  }, [year, objectId, shareFilter, categoryId, tagId])
 
   const { data: filterOptions } = useQuery({
     queryKey: ['dashboard-filter-options'],
     queryFn: analyticsApi.filterOptions,
   })
+
+  const yearOptions = useMemo(() => {
+    const years = new Set(filterOptions?.years || [])
+    years.add(currentYear)
+    return Array.from(years).sort((a, b) => b - a)
+  }, [filterOptions, currentYear])
 
   const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ['dashboard', filters],
@@ -149,6 +218,7 @@ export function DashboardPage() {
   function handleExportPdf() {
     exportDashboardPdf(data!, {
       ...pdfFilterLabels,
+      year: filters.year,
       includePartyComparison: filters.partyId == null && (filterOptions?.parties?.length || 0) > 0,
     })
   }
@@ -173,78 +243,9 @@ export function DashboardPage() {
     )
   }
 
-  const textColor = theme.palette.text.primary
-  const muted = theme.palette.text.secondary
-
-  const categoryOption = {
-    color: ['#2F5D8C', '#5B8FB9', '#7AA2C4', '#9BB5C9', '#B8C9D6', '#D4DEE6'],
-    tooltip: { trigger: 'item', formatter: '{b}: {c} € ({d}%)' },
-    legend: { bottom: 0, textStyle: { color: muted } },
-    series: [
-      {
-        type: 'pie',
-        radius: ['42%', '68%'],
-        avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 2, borderColor: theme.palette.background.paper, borderWidth: 2 },
-        label: { color: textColor },
-        data: data.costs_by_category.map((c) => ({
-          name: c.name,
-          value: Number(c.amount),
-        })),
-      },
-    ],
-  }
-
-  const personOption = {
-    color: ['#2F5D8C'],
-    grid: { left: 40, right: 20, top: 20, bottom: 40 },
-    tooltip: { trigger: 'axis' },
-    xAxis: {
-      type: 'category',
-      data: data.costs_by_person.map((p) => p.name),
-      axisLabel: { color: muted },
-      axisLine: { lineStyle: { color: theme.palette.divider } },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { color: muted },
-      splitLine: { lineStyle: { color: theme.palette.divider } },
-    },
-    series: [
-      {
-        type: 'bar',
-        data: data.costs_by_person.map((p) => Number(p.amount)),
-        barMaxWidth: 36,
-        itemStyle: { borderRadius: [3, 3, 0, 0] },
-      },
-    ],
-  }
-
-  const partyOption = {
-    color: ['#5B8FB9'],
-    grid: { left: 40, right: 20, top: 20, bottom: 40 },
-    tooltip: { trigger: 'axis' },
-    xAxis: {
-      type: 'category',
-      data: data.costs_by_party.map((p) => p.name),
-      axisLabel: { color: muted },
-      axisLine: { lineStyle: { color: theme.palette.divider } },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { color: muted },
-      splitLine: { lineStyle: { color: theme.palette.divider } },
-    },
-    series: [
-      {
-        type: 'bar',
-        data: data.costs_by_party.map((p) => Number(p.amount)),
-        barMaxWidth: 36,
-        itemStyle: { borderRadius: [3, 3, 0, 0] },
-      },
-    ],
-  }
-
+  const categoryOption = buildPieOption(theme, data.costs_by_category)
+  const topBlocksOption = buildBarOption(theme, data.top_cost_blocks, { horizontal: true })
+  const partyOption = buildBarOption(theme, data.costs_by_party, { horizontal: false })
   const partyTotal = data.costs_by_party.reduce((sum, row) => sum + Number(row.amount), 0)
 
   return (
@@ -253,11 +254,37 @@ export function DashboardPage() {
         sx={{
           display: 'flex',
           flexWrap: 'wrap',
-          gap: 1,
+          gap: 1.5,
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
         }}
       >
+        <Typography variant="h4" component="h1" sx={{ mr: 'auto', lineHeight: 1.2 }}>
+          {year}
+        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 1,
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+          }}
+        >
+        <FormControl size="small" sx={selectSx}>
+          <InputLabel>Jahr</InputLabel>
+          <Select
+            label="Jahr"
+            value={String(year)}
+            onChange={(e) => setYear(Number(e.target.value))}
+          >
+            {yearOptions.map((y) => (
+              <MenuItem key={y} value={String(y)}>
+                {y}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <FormControl size="small" sx={selectSx}>
           <InputLabel>Objekt</InputLabel>
           <Select
@@ -333,6 +360,10 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
+        <MyFinancesButton
+          active={myFinancesActive}
+          onToggle={() => setMyFinances(!myFinancesActive)}
+        />
         {hasFilter && (
           <Button
             size="small"
@@ -341,9 +372,17 @@ export function DashboardPage() {
               setShareFilter('')
               setCategoryId('')
               setTagId('')
+              const next = new URLSearchParams(searchParams)
+              next.delete('meine')
+              setSearchParams(next, { replace: true })
             }}
           >
-            Zurücksetzen
+            Filter zurücksetzen
+          </Button>
+        )}
+        {year !== currentYear && (
+          <Button size="small" onClick={() => setYear(currentYear)}>
+            Aktuelles Jahr
           </Button>
         )}
         <Button
@@ -354,33 +393,118 @@ export function DashboardPage() {
         >
           PDF
         </Button>
-        {hasFilter && (
+        {hasFilter && filterHint && (
           <Typography variant="caption" color="text.secondary">
             {filterHint}
           </Typography>
         )}
+        </Box>
+      </Box>
+
+      <Stack spacing={2.5}>
+        <KpiSection title="Monat">
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <KpiPanel label="Fixkosten" value={formatCurrency(data.monthly_fixed_costs)} />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <KpiPanel label="Einnahmen" value={formatCurrency(data.monthly_income)} />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <KpiPanel label="Netto" value={formatCurrency(data.monthly_net)} />
+          </Grid>
+        </KpiSection>
+
+        <KpiSection title="Jahr (hochgerechnet)">
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <KpiPanel label="Ausgaben" value={formatCurrency(data.yearly_fixed_costs)} />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <KpiPanel label="Einnahmen" value={formatCurrency(data.yearly_income)} />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <KpiPanel label="Netto" value={formatCurrency(data.yearly_net)} />
+          </Grid>
+        </KpiSection>
+
+        {(Number(data.one_time_expense) > 0 ||
+          Number(data.one_time_income) > 0 ||
+          data.active_contracts > 0) && (
+          <Box
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: { xs: 2, sm: 3 },
+              alignItems: 'baseline',
+              px: 0.5,
+            }}
+          >
+            {Number(data.one_time_expense) > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Einmalig{' '}
+                <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                  {formatCurrency(data.one_time_expense)}
+                </Box>
+              </Typography>
+            )}
+            {Number(data.one_time_income) > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Erstattungen{' '}
+                <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                  {formatCurrency(data.one_time_income)}
+                </Box>
+              </Typography>
+            )}
+            <Typography variant="body2" color="text.secondary">
+              {data.active_contracts} Verträge · {data.active_cost_items} Positionen
+              {year === currentYear && data.upcoming_dues.length > 0
+                ? ` · ${data.upcoming_dues.length} Fälligkeiten`
+                : ''}
+            </Typography>
+          </Box>
+        )}
+      </Stack>
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
+          Diagramme
+        </Typography>
+        <Button component={RouterLink} to="/analysen" size="small">
+          Alle Analysen
+        </Button>
       </Box>
 
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KpiPanel label="Monatliche Fixkosten" value={formatCurrency(data.monthly_fixed_costs)} />
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Kosten nach Kategorie
+              </Typography>
+              {data.costs_by_category.length === 0 ? (
+                <Typography color="text.secondary">Keine Daten für diesen Filter.</Typography>
+              ) : (
+                <ReactECharts option={categoryOption} style={{ height: 300 }} notMerge />
+              )}
+            </CardContent>
+          </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KpiPanel label="Jährliche Fixkosten" value={formatCurrency(data.yearly_fixed_costs)} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KpiPanel
-            label="Aktive Verträge"
-            value={String(data.active_contracts)}
-            hint={`${data.active_cost_items} Kostenpositionen`}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <KpiPanel
-            label="Nächste Fälligkeiten"
-            value={String(data.upcoming_dues.length)}
-            hint="mit Fälligkeitstag"
-          />
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Größte Kostenblöcke
+              </Typography>
+              {data.top_cost_blocks.length === 0 ? (
+                <Typography color="text.secondary">Keine Einträge</Typography>
+              ) : (
+                <ReactECharts
+                  option={topBlocksOption}
+                  style={{ height: Math.max(260, data.top_cost_blocks.length * 32 + 40) }}
+                  notMerge
+                />
+              )}
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
 
@@ -391,7 +515,6 @@ export function DashboardPage() {
               Vergleich Parteien
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Enthält direkte Partei-Kosten sowie Anteile zugeordneter Personen und Objekte.
               Gesamt der Partei-Anteile: {formatCurrency(partyTotal)}
               {Number(data.monthly_fixed_costs) > 0 && partyTotal > 0
                 ? ` · Dashboard-Gesamt: ${formatCurrency(data.monthly_fixed_costs)}`
@@ -403,10 +526,10 @@ export function DashboardPage() {
               </Typography>
             ) : (
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 7 }}>
                   <ReactECharts option={partyOption} style={{ height: 260 }} notMerge />
                 </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 5 }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -427,17 +550,6 @@ export function DashboardPage() {
                           </TableCell>
                         </TableRow>
                       ))}
-                      <TableRow>
-                        <TableCell>
-                          <strong>Gesamt Parteien</strong>
-                        </TableCell>
-                        <TableCell align="right">
-                          <strong>{formatCurrency(partyTotal)}</strong>
-                        </TableCell>
-                        <TableCell align="right">
-                          <strong>100 %</strong>
-                        </TableCell>
-                      </TableRow>
                     </TableBody>
                   </Table>
                 </Grid>
@@ -446,100 +558,6 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       )}
-
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Kosten nach Kategorie
-              </Typography>
-              {data.costs_by_category.length === 0 ? (
-                <Typography color="text.secondary">Keine Daten für diesen Filter.</Typography>
-              ) : (
-                <ReactECharts option={categoryOption} style={{ height: 320 }} notMerge />
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Kosten je Person / Haushalt
-              </Typography>
-              {data.costs_by_person.length === 0 ? (
-                <Typography color="text.secondary">Keine Daten für diesen Filter.</Typography>
-              ) : (
-                <ReactECharts option={personOption} style={{ height: 320 }} notMerge />
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Größte Kostenblöcke (monatlich)
-              </Typography>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Position</TableCell>
-                    <TableCell align="right">Betrag</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {data.top_cost_blocks.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={2}>Keine Einträge</TableCell>
-                    </TableRow>
-                  )}
-                  {data.top_cost_blocks.map((row) => (
-                    <TableRow key={`${row.id}-${row.name}`}>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell align="right">{formatCurrency(row.amount)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Kosten je Objekt
-              </Typography>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Objekt</TableCell>
-                    <TableCell align="right">Monatlich</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {data.costs_by_object.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={2}>Keine Einträge</TableCell>
-                    </TableRow>
-                  )}
-                  {data.costs_by_object.map((row) => (
-                    <TableRow key={`${row.id}-${row.name}`}>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell align="right">{formatCurrency(row.amount)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
 
       <Card>
         <CardContent>

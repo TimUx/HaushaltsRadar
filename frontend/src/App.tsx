@@ -19,6 +19,9 @@ import { TagsPage } from './pages/TagsPage'
 import { CostItemsPage } from './pages/CostItemsPage'
 import { ContractsPage } from './pages/ContractsPage'
 import { UsersPage } from './pages/UsersPage'
+import { AdminDataPage } from './pages/AdminDataPage'
+import { AnalysesPage } from './pages/AnalysesPage'
+import { ReportsPage } from './pages/ReportsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +57,8 @@ function ThemedApp() {
               <Route path="login" element={<LoginPage />} />
               <Route element={<ProtectedRoute roles={['admin', 'user', 'viewer']} />}>
                 <Route index element={<DashboardPage />} />
+                <Route path="analysen" element={<AnalysesPage />} />
+                <Route path="berichte" element={<ReportsPage />} />
                 <Route path="struktur" element={<StructurePage />} />
                 <Route path="kostenuebersicht" element={<CostsOverviewPage />} />
                 <Route path="historie" element={<HistoryPage />} />
@@ -69,6 +74,7 @@ function ThemedApp() {
               </Route>
               <Route element={<ProtectedRoute roles={['admin']} />}>
                 <Route path="benutzer" element={<UsersPage />} />
+                <Route path="verwaltung" element={<AdminDataPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    admin_data,
     analytics,
     auth,
     categories,
@@ -9,6 +10,7 @@ from app.api.v1 import (
     objects,
     parties,
     persons,
+    reports,
     tags,
     users,
 )
@@ -16,6 +18,8 @@ from app.api.v1 import (
 api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(analytics.router)
+api_router.include_router(reports.router)
+api_router.include_router(admin_data.router)
 api_router.include_router(users.router)
 api_router.include_router(persons.router)
 api_router.include_router(parties.router)

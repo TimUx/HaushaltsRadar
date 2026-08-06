@@ -32,6 +32,12 @@ class PaymentInterval(str, enum.Enum):
     semiannual = "semiannual"
     annual = "annual"
     custom = "custom"
+    one_time = "one_time"
+
+
+class EntryType(str, enum.Enum):
+    expense = "expense"
+    income = "income"
 
 
 class UserRole(str, enum.Enum):
@@ -73,6 +79,13 @@ class User(Base, TimestampMixin):
         nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    person_id: Mapped[int | None] = mapped_column(
+        ForeignKey("persons.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    person = relationship("Person", foreign_keys=[person_id])
 
     @property
     def is_admin(self) -> bool:
@@ -188,6 +201,15 @@ class CostItem(Base, TimestampMixin):
     contract_partner: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="EUR", nullable=False)
+    entry_type: Mapped[EntryType] = mapped_column(
+        Enum(
+            EntryType,
+            name="entry_type",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        default=EntryType.expense,
+        nullable=False,
+    )
     payment_interval: Mapped[PaymentInterval] = mapped_column(
         Enum(
             PaymentInterval,

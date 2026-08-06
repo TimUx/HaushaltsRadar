@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_admin
 from app.core.security import hash_password
 from app.db.session import get_db
-from app.models import User, UserRole
+from app.models import Person, User, UserRole
 from app.schemas import UserCreate, UserRead, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["Benutzer"])
@@ -24,6 +24,15 @@ def _parse_role(value: str) -> UserRole:
 
 def _admin_count(db: Session) -> int:
     return db.query(User).filter(User.role == UserRole.admin, User.is_active.is_(True)).count()
+
+
+def _resolve_person_id(db: Session, person_id: int | None) -> int | None:
+    if person_id is None:
+        return None
+    person = db.get(Person, person_id)
+    if not person or not person.is_active:
+        raise HTTPException(status_code=400, detail="Person nicht gefunden oder inaktiv")
+    return person.id
 
 
 @router.get("", response_model=list[UserRead])
@@ -45,6 +54,7 @@ def create_user(
         password_hash=hash_password(payload.password),
         role=_parse_role(payload.role),
         is_active=payload.is_active,
+        person_id=_resolve_person_id(db, payload.person_id),
     )
     db.add(user)
     try:
@@ -88,6 +98,8 @@ def update_user(
         user.role = new_role
     if "is_active" in data:
         user.is_active = bool(data["is_active"])
+    if "person_id" in data:
+        user.person_id = _resolve_person_id(db, data["person_id"])
 
     try:
         db.commit()

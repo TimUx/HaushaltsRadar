@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy.orm import Session, joinedload
@@ -8,6 +9,7 @@ from app.models import (
     Contract,
     CostAllocation,
     CostItem,
+    EntryType,
     ObjectEntity,
     Party,
     PaymentInterval,
@@ -15,7 +17,12 @@ from app.models import (
     Tag,
 )
 from app.schemas import DashboardSummary, NamedAmount, UpcomingDue
-from app.services.amounts import monthly_amount, yearly_amount
+from app.services.amounts import is_income, is_one_time, monthly_amount, yearly_amount
+from app.services.cost_history import (
+    ensure_item_history,
+    months_in_year,
+    unsigned_contribution_in_month,
+)
 from app.services.due_dates import format_due_label, next_due_sort_key
 
 INTERVAL_LABELS_DE = {
@@ -25,7 +32,16 @@ INTERVAL_LABELS_DE = {
     PaymentInterval.semiannual: "Halbjährlich",
     PaymentInterval.annual: "Jährlich",
     PaymentInterval.custom: "Individuell",
+    PaymentInterval.one_time: "Einmalig",
 }
+
+ENTRY_TYPE_LABELS_DE = {
+    EntryType.expense: "Ausgabe",
+    EntryType.income: "Einnahme",
+}
+
+BREAKDOWN_GROUPS = {"category", "person", "object", "tag", "party"}
+HIERARCHY_MODES = {"category", "structure"}
 
 
 class AnalyticsService:
@@ -50,6 +66,10 @@ class AnalyticsService:
         )
         categories = self.db.query(Category).order_by(Category.sort_order, Category.name).all()
         tags = self.db.query(Tag).order_by(Tag.name).all()
+        today = date.today()
+        years = {today.year - offset for offset in range(0, 6)}
+        for (start,) in self.db.query(CostItem.start_date).filter(CostItem.start_date.isnot(None)):
+            years.add(start.year)
         return {
             "persons": [
                 {"id": p.id, "name": p.name, "party_id": p.party_id} for p in persons
@@ -66,6 +86,7 @@ class AnalyticsService:
             ],
             "categories": [{"id": c.id, "name": c.name} for c in categories],
             "tags": [{"id": t.id, "name": t.name} for t in tags],
+            "years": sorted(years, reverse=True),
         }
 
     def _person_objects(self, person_id: int, objects: list[ObjectEntity]) -> list[dict]:
@@ -174,6 +195,15 @@ class AnalyticsService:
 
             contract = item.contract
             tag_names = sorted(tag.name for tag in item.tags)
+            related_person_ids: set[int] = set()
+            for alloc in item.allocations:
+                if alloc.person_id:
+                    related_person_ids.add(alloc.person_id)
+            if item.object and item.object.person_id:
+                has_person_alloc = any(a.person_id for a in item.allocations)
+                if not item.allocations or not has_person_alloc:
+                    related_person_ids.add(item.object.person_id)
+
             rows.append(
                 {
                     "id": item.id,
@@ -194,16 +224,26 @@ class AnalyticsService:
                         if item.object and item.object.person
                         else None
                     ),
+                    "object_person_id": item.object.person_id if item.object else None,
+                    "related_person_ids": sorted(related_person_ids),
                     "contract_partner": item.contract_partner,
                     "amount": item.amount,
                     "currency": item.currency,
+                    "entry_type": item.entry_type.value,
+                    "entry_type_label": ENTRY_TYPE_LABELS_DE.get(
+                        item.entry_type, item.entry_type.value
+                    ),
                     "payment_interval": item.payment_interval.value,
                     "payment_interval_label": INTERVAL_LABELS_DE.get(
                         item.payment_interval, item.payment_interval.value
                     ),
                     "monthly_amount": monthly_amount(item),
                     "yearly_amount": yearly_amount(item),
-                    "due_label": format_due_label(item.due_day, item.due_month),
+                    "due_label": (
+                        item.start_date.isoformat()
+                        if is_one_time(item) and item.start_date
+                        else format_due_label(item.due_day, item.due_month)
+                    ),
                     "due_day": item.due_day,
                     "due_month": item.due_month,
                     "allocations": ", ".join(allocation_parts) if allocation_parts else "Haushalt 100 %",
@@ -327,6 +367,7 @@ class AnalyticsService:
     def dashboard_summary(
         self,
         *,
+        year: int | None = None,
         object_id: int | None = None,
         person_id: int | None = None,
         party_id: int | None = None,
@@ -346,6 +387,16 @@ class AnalyticsService:
                 "person_id, party_id und household können nicht gleichzeitig gesetzt sein"
             )
 
+        today = date.today()
+        selected_year = year or today.year
+        if selected_year < 2000 or selected_year > today.year + 1:
+            raise ValueError("Ungültiges Jahr")
+
+        months = months_in_year(selected_year, through=today)
+        if not months:
+            raise ValueError("Für dieses Jahr liegen noch keine Daten vor")
+        reference_month = months[-1]
+
         query = (
             self.db.query(CostItem)
             .options(
@@ -354,8 +405,8 @@ class AnalyticsService:
                 joinedload(CostItem.category),
                 joinedload(CostItem.tags),
                 joinedload(CostItem.object),
+                joinedload(CostItem.price_history),
             )
-            .filter(CostItem.is_active.is_(True))
         )
         if object_id is not None:
             query = query.filter(CostItem.object_id == object_id)
@@ -365,41 +416,30 @@ class AnalyticsService:
             query = query.filter(CostItem.tags.any(Tag.id == tag_id))
 
         items = query.all()
+        for item in items:
+            ensure_item_history(self.db, item)
+        self.db.flush()
+        for item in items:
+            self.db.refresh(item, attribute_names=["price_history"])
+
         persons = self.db.query(Person).all()
         person_names = {p.id: p.name for p in persons}
         person_party = {p.id: p.party_id for p in persons}
         party_names = {p.id: p.name for p in self.db.query(Party).all()}
 
-        monthly_total = Decimal("0.00")
-        yearly_total = Decimal("0.00")
+        yearly_fixed = Decimal("0.00")
+        yearly_income = Decimal("0.00")
+        one_time_expense = Decimal("0.00")
+        one_time_income = Decimal("0.00")
         by_person: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
         by_party: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
         by_object: dict[tuple[int | None, str], Decimal] = defaultdict(lambda: Decimal("0.00"))
         by_category: dict[tuple[int, str], Decimal] = defaultdict(lambda: Decimal("0.00"))
         top_items: list[tuple[int, str, Decimal]] = []
-        included_ids: list[int] = []
+        included_ids: set[int] = set()
+        reference_expense_ids: set[int] = set()
 
-        for item in items:
-            factor = self._share_factor(
-                item,
-                person_id=person_id,
-                party_id=party_id,
-                household=household,
-                person_party=person_party,
-            )
-            if factor is None:
-                continue
-
-            m = (monthly_amount(item) * factor).quantize(Decimal("0.01"))
-            y = (yearly_amount(item) * factor).quantize(Decimal("0.01"))
-            if m == 0 and y == 0:
-                continue
-
-            included_ids.append(item.id)
-            monthly_total += m
-            yearly_total += y
-            top_items.append((item.id, item.name, m))
-
+        def add_breakdown(item: CostItem, m: Decimal) -> None:
             cat_key = (item.category_id, item.category.name if item.category else "Unbekannt")
             by_category[cat_key] += m
 
@@ -415,73 +455,170 @@ class AnalyticsService:
                     by_person[person_names.get(person_id, "Unbekannt")] += m
                 elif party_id is not None:
                     by_party[party_names.get(party_id, "Unbekannt")] += m
-            else:
-                # Unfiltered: breakdown by explicit allocations, then roll persons into parties
-                if item.allocations:
-                    for alloc in item.allocations:
-                        share = (m * Decimal(alloc.percentage) / Decimal("100")).quantize(
-                            Decimal("0.01")
-                        )
-                        if alloc.is_household:
-                            by_person["Haushalt"] += share
-                        elif alloc.person_id and alloc.person_id in person_names:
-                            by_person[person_names[alloc.person_id]] += share
-                            mapped_party = person_party.get(alloc.person_id)
-                            if mapped_party and mapped_party in party_names:
-                                by_party[party_names[mapped_party]] += share
-                        elif alloc.party_id and alloc.party_id in party_names:
-                            by_party[party_names[alloc.party_id]] += share
-                        else:
-                            by_person["Unbekannt"] += share
-                elif item.object and item.object.person_id and item.object.person_id in person_names:
-                    by_person[person_names[item.object.person_id]] += m
-                    mapped_party = person_party.get(item.object.person_id)
-                    if mapped_party and mapped_party in party_names:
-                        by_party[party_names[mapped_party]] += m
-                elif item.object and item.object.party_id and item.object.party_id in party_names:
-                    by_party[party_names[item.object.party_id]] += m
-                else:
-                    by_person["Haushalt"] += m
+                return
 
-        included_set = set(included_ids)
-        if included_set:
+            if item.allocations:
+                for alloc in item.allocations:
+                    share = (m * Decimal(alloc.percentage) / Decimal("100")).quantize(
+                        Decimal("0.01")
+                    )
+                    if alloc.is_household:
+                        by_person["Haushalt"] += share
+                    elif alloc.person_id and alloc.person_id in person_names:
+                        by_person[person_names[alloc.person_id]] += share
+                        mapped_party = person_party.get(alloc.person_id)
+                        if mapped_party and mapped_party in party_names:
+                            by_party[party_names[mapped_party]] += share
+                    elif alloc.party_id and alloc.party_id in party_names:
+                        by_party[party_names[alloc.party_id]] += share
+                    else:
+                        by_person["Unbekannt"] += share
+            elif item.object and item.object.person_id and item.object.person_id in person_names:
+                by_person[person_names[item.object.person_id]] += m
+                mapped_party = person_party.get(item.object.person_id)
+                if mapped_party and mapped_party in party_names:
+                    by_party[party_names[mapped_party]] += m
+            elif item.object and item.object.party_id and item.object.party_id in party_names:
+                by_party[party_names[item.object.party_id]] += m
+            else:
+                by_person["Haushalt"] += m
+
+        for item in items:
+            factor = self._share_factor(
+                item,
+                person_id=person_id,
+                party_id=party_id,
+                household=household,
+                person_party=person_party,
+            )
+            if factor is None:
+                continue
+
+            history = sorted(item.price_history, key=lambda h: (h.valid_from, h.id))
+            contributed = False
+
+            for month in months:
+                amount = (
+                    unsigned_contribution_in_month(item, month, history) * factor
+                ).quantize(Decimal("0.01"))
+                if amount == 0:
+                    continue
+                contributed = True
+                if is_one_time(item):
+                    if is_income(item):
+                        one_time_income += amount
+                    else:
+                        one_time_expense += amount
+                elif is_income(item):
+                    yearly_income += amount
+                else:
+                    yearly_fixed += amount
+
+            if not contributed:
+                continue
+
+            included_ids.add(item.id)
+
+            if is_one_time(item) or is_income(item):
+                continue
+            ref_amount = (
+                unsigned_contribution_in_month(item, reference_month, history) * factor
+            ).quantize(Decimal("0.01"))
+            if ref_amount == 0:
+                continue
+            reference_expense_ids.add(item.id)
+            top_items.append((item.id, item.name, ref_amount))
+            add_breakdown(item, ref_amount)
+
+        # Monthly KPIs = snapshot of the reference month (current/last month of year)
+        monthly_fixed = Decimal("0.00")
+        monthly_income_snap = Decimal("0.00")
+        for item in items:
+            factor = self._share_factor(
+                item,
+                person_id=person_id,
+                party_id=party_id,
+                household=household,
+                person_party=person_party,
+            )
+            if factor is None or is_one_time(item):
+                continue
+            history = sorted(item.price_history, key=lambda h: (h.valid_from, h.id))
+            amount = (
+                unsigned_contribution_in_month(item, reference_month, history) * factor
+            ).quantize(Decimal("0.01"))
+            if amount == 0:
+                continue
+            if is_income(item):
+                monthly_income_snap += amount
+            else:
+                monthly_fixed += amount
+
+        monthly_net = (monthly_fixed - monthly_income_snap).quantize(Decimal("0.01"))
+        # Jahres-KPIs: annualisierte Laufkosten (12 × Monatsstand)
+        annualized_fixed = (monthly_fixed * Decimal("12")).quantize(Decimal("0.01"))
+        annualized_income = (monthly_income_snap * Decimal("12")).quantize(Decimal("0.01"))
+        annualized_net = (annualized_fixed - annualized_income).quantize(Decimal("0.01"))
+        # Bisher im Jahr: Summe der monatlichen Beiträge (bereits in yearly_*)
+        ytd_fixed = yearly_fixed.quantize(Decimal("0.01"))
+        ytd_income_total = yearly_income.quantize(Decimal("0.01"))
+
+        if included_ids:
             active_contracts = (
-                self.db.query(Contract).filter(Contract.cost_item_id.in_(included_set)).count()
+                self.db.query(Contract).filter(Contract.cost_item_id.in_(included_ids)).count()
             )
         else:
             active_contracts = 0
 
-        due_items = [item for item in items if item.id in included_set and item.due_day is not None]
-        due_items.sort(key=next_due_sort_key)
-        upcoming = []
-        for item in due_items[:10]:
-            factor = (
-                self._share_factor(
-                    item,
-                    person_id=person_id,
-                    party_id=party_id,
-                    household=household,
-                    person_party=person_party,
+        upcoming: list[UpcomingDue] = []
+        if selected_year == today.year:
+            due_items = [
+                item
+                for item in items
+                if item.id in reference_expense_ids
+                and not is_one_time(item)
+                and item.due_day is not None
+                and item.is_active
+            ]
+            due_items.sort(key=next_due_sort_key)
+            for item in due_items[:10]:
+                factor = (
+                    self._share_factor(
+                        item,
+                        person_id=person_id,
+                        party_id=party_id,
+                        household=household,
+                        person_party=person_party,
+                    )
+                    or Decimal("1")
                 )
-                or Decimal("1")
-            )
-            upcoming.append(
-                UpcomingDue(
-                    cost_item_id=item.id,
-                    name=item.name,
-                    due_day=item.due_day,
-                    due_month=item.due_month,
-                    due_label=format_due_label(item.due_day, item.due_month),
-                    amount=(monthly_amount(item) * factor).quantize(Decimal("0.01")),
-                    payment_interval=item.payment_interval,
+                upcoming.append(
+                    UpcomingDue(
+                        cost_item_id=item.id,
+                        name=item.name,
+                        due_day=item.due_day,
+                        due_month=item.due_month,
+                        due_label=format_due_label(item.due_day, item.due_month),
+                        amount=(monthly_amount(item) * factor).quantize(Decimal("0.01")),
+                        payment_interval=item.payment_interval,
+                        entry_type=item.entry_type,
+                    )
                 )
-            )
 
         top_items.sort(key=lambda t: t[2], reverse=True)
 
         return DashboardSummary(
-            monthly_fixed_costs=monthly_total.quantize(Decimal("0.01")),
-            yearly_fixed_costs=yearly_total.quantize(Decimal("0.01")),
+            year=selected_year,
+            monthly_fixed_costs=monthly_fixed.quantize(Decimal("0.01")),
+            yearly_fixed_costs=annualized_fixed,
+            monthly_income=monthly_income_snap.quantize(Decimal("0.01")),
+            yearly_income=annualized_income,
+            monthly_net=monthly_net,
+            yearly_net=annualized_net,
+            ytd_fixed_costs=ytd_fixed,
+            ytd_income=ytd_income_total,
+            one_time_expense=one_time_expense.quantize(Decimal("0.01")),
+            one_time_income=one_time_income.quantize(Decimal("0.01")),
             active_contracts=active_contracts,
             active_cost_items=len(included_ids),
             costs_by_person=[
@@ -506,3 +643,461 @@ class AnalyticsService:
             ],
             upcoming_dues=upcoming,
         )
+
+    def _validate_share_filters(
+        self,
+        *,
+        person_id: int | None,
+        party_id: int | None,
+        household: bool,
+    ) -> None:
+        filters_set = sum(
+            [
+                1 if person_id is not None else 0,
+                1 if party_id is not None else 0,
+                1 if household else 0,
+            ]
+        )
+        if filters_set > 1:
+            raise ValueError(
+                "person_id, party_id und household können nicht gleichzeitig gesetzt sein"
+            )
+
+    def _resolve_year(self, year: int | None) -> tuple[int, list[date], date]:
+        today = date.today()
+        selected_year = year or today.year
+        if selected_year < 2000 or selected_year > today.year + 1:
+            raise ValueError("Ungültiges Jahr")
+        months = months_in_year(selected_year, through=today)
+        if not months:
+            raise ValueError("Für dieses Jahr liegen noch keine Daten vor")
+        return selected_year, months, months[-1]
+
+    def _load_items_for_charts(
+        self,
+        *,
+        object_id: int | None = None,
+        category_id: int | None = None,
+        tag_id: int | None = None,
+    ) -> list[CostItem]:
+        query = (
+            self.db.query(CostItem)
+            .options(
+                joinedload(CostItem.allocations).joinedload(CostAllocation.person),
+                joinedload(CostItem.allocations).joinedload(CostAllocation.party),
+                joinedload(CostItem.category),
+                joinedload(CostItem.tags),
+                joinedload(CostItem.object).joinedload(ObjectEntity.party),
+                joinedload(CostItem.object).joinedload(ObjectEntity.person),
+                joinedload(CostItem.price_history),
+            )
+        )
+        if object_id is not None:
+            query = query.filter(CostItem.object_id == object_id)
+        if category_id is not None:
+            query = query.filter(CostItem.category_id == category_id)
+        if tag_id is not None:
+            query = query.filter(CostItem.tags.any(Tag.id == tag_id))
+        items = query.all()
+        for item in items:
+            ensure_item_history(self.db, item)
+        self.db.flush()
+        for item in items:
+            self.db.refresh(item, attribute_names=["price_history"])
+        return items
+
+    def _person_party_map(self) -> dict[int, int | None]:
+        return {p.id: p.party_id for p in self.db.query(Person).all()}
+
+    def _iter_expense_snapshots(
+        self,
+        items: list[CostItem],
+        *,
+        reference_month: date,
+        person_id: int | None,
+        party_id: int | None,
+        household: bool,
+        person_party: dict[int, int | None],
+    ):
+        """Yield (item, amount) for recurring expenses in the reference month."""
+        for item in items:
+            if is_one_time(item) or is_income(item):
+                continue
+            factor = self._share_factor(
+                item,
+                person_id=person_id,
+                party_id=party_id,
+                household=household,
+                person_party=person_party,
+            )
+            if factor is None:
+                continue
+            history = sorted(item.price_history, key=lambda h: (h.valid_from, h.id))
+            amount = (
+                unsigned_contribution_in_month(item, reference_month, history) * factor
+            ).quantize(Decimal("0.01"))
+            if amount == 0:
+                continue
+            yield item, amount
+
+    def breakdown(
+        self,
+        *,
+        group_by: str,
+        year: int | None = None,
+        object_id: int | None = None,
+        person_id: int | None = None,
+        party_id: int | None = None,
+        household: bool = False,
+        category_id: int | None = None,
+        tag_id: int | None = None,
+    ) -> dict:
+        if group_by not in BREAKDOWN_GROUPS:
+            raise ValueError(f"Ungültiges group_by. Erlaubt: {', '.join(sorted(BREAKDOWN_GROUPS))}")
+        self._validate_share_filters(person_id=person_id, party_id=party_id, household=household)
+        _, _, reference_month = self._resolve_year(year)
+        items = self._load_items_for_charts(
+            object_id=object_id, category_id=category_id, tag_id=tag_id
+        )
+        person_party = self._person_party_map()
+        person_names = {p.id: p.name for p in self.db.query(Person).all()}
+        party_names = {p.id: p.name for p in self.db.query(Party).all()}
+
+        buckets: dict[tuple[int | None, str], Decimal] = defaultdict(lambda: Decimal("0.00"))
+
+        for item, amount in self._iter_expense_snapshots(
+            items,
+            reference_month=reference_month,
+            person_id=person_id,
+            party_id=party_id,
+            household=household,
+            person_party=person_party,
+        ):
+            if group_by == "category":
+                key = (item.category_id, item.category.name if item.category else "Unbekannt")
+                buckets[key] += amount
+            elif group_by == "object":
+                if item.object:
+                    buckets[(item.object.id, item.object.name)] += amount
+                else:
+                    buckets[(None, "Ohne Objekt")] += amount
+            elif group_by == "tag":
+                tags = list(item.tags)
+                if not tags:
+                    buckets[(None, "Ohne Tag")] += amount
+                else:
+                    share = (amount / Decimal(len(tags))).quantize(Decimal("0.01"))
+                    for tag in tags:
+                        buckets[(tag.id, tag.name)] += share
+            elif group_by == "person":
+                if item.allocations:
+                    for alloc in item.allocations:
+                        share = (amount * Decimal(alloc.percentage) / Decimal("100")).quantize(
+                            Decimal("0.01")
+                        )
+                        if alloc.is_household:
+                            buckets[(None, "Haushalt")] += share
+                        elif alloc.person_id and alloc.person_id in person_names:
+                            buckets[(alloc.person_id, person_names[alloc.person_id])] += share
+                        elif alloc.party_id and alloc.party_id in party_names:
+                            buckets[(None, f"Partei: {party_names[alloc.party_id]}")] += share
+                elif item.object and item.object.person_id and item.object.person_id in person_names:
+                    buckets[(item.object.person_id, person_names[item.object.person_id])] += amount
+                else:
+                    buckets[(None, "Haushalt")] += amount
+            elif group_by == "party":
+                if item.allocations:
+                    for alloc in item.allocations:
+                        share = (amount * Decimal(alloc.percentage) / Decimal("100")).quantize(
+                            Decimal("0.01")
+                        )
+                        if alloc.party_id and alloc.party_id in party_names:
+                            buckets[(alloc.party_id, party_names[alloc.party_id])] += share
+                        elif alloc.person_id:
+                            mapped = person_party.get(alloc.person_id)
+                            if mapped and mapped in party_names:
+                                buckets[(mapped, party_names[mapped])] += share
+                            else:
+                                buckets[(None, "Ohne Partei")] += share
+                        elif alloc.is_household:
+                            buckets[(None, "Haushalt")] += share
+                elif item.object and item.object.party_id and item.object.party_id in party_names:
+                    buckets[(item.object.party_id, party_names[item.object.party_id])] += amount
+                elif item.object and item.object.person_id:
+                    mapped = person_party.get(item.object.person_id)
+                    if mapped and mapped in party_names:
+                        buckets[(mapped, party_names[mapped])] += amount
+                    else:
+                        buckets[(None, "Ohne Partei")] += amount
+                else:
+                    buckets[(None, "Haushalt")] += amount
+
+        return {
+            "group_by": group_by,
+            "items": [
+                {"id": key[0], "name": key[1], "amount": amount.quantize(Decimal("0.01"))}
+                for key, amount in sorted(buckets.items(), key=lambda x: x[1], reverse=True)
+            ],
+        }
+
+    def hierarchy(
+        self,
+        *,
+        mode: str = "category",
+        year: int | None = None,
+        object_id: int | None = None,
+        person_id: int | None = None,
+        party_id: int | None = None,
+        household: bool = False,
+        category_id: int | None = None,
+        tag_id: int | None = None,
+    ) -> dict:
+        if mode not in HIERARCHY_MODES:
+            raise ValueError(f"Ungültiger mode. Erlaubt: {', '.join(sorted(HIERARCHY_MODES))}")
+        self._validate_share_filters(person_id=person_id, party_id=party_id, household=household)
+        _, _, reference_month = self._resolve_year(year)
+        items = self._load_items_for_charts(
+            object_id=object_id, category_id=category_id, tag_id=tag_id
+        )
+        person_party = self._person_party_map()
+
+        if mode == "category":
+            cats: dict[int | None, dict] = {}
+            for item, amount in self._iter_expense_snapshots(
+                items,
+                reference_month=reference_month,
+                person_id=person_id,
+                party_id=party_id,
+                household=household,
+                person_party=person_party,
+            ):
+                cid = item.category_id
+                cname = item.category.name if item.category else "Unbekannt"
+                if cid not in cats:
+                    cats[cid] = {
+                        "id": cid,
+                        "name": cname,
+                        "value": Decimal("0.00"),
+                        "children": [],
+                    }
+                cats[cid]["children"].append(
+                    {"id": item.id, "name": item.name, "value": amount}
+                )
+                cats[cid]["value"] += amount
+            nodes = sorted(cats.values(), key=lambda n: n["value"], reverse=True)
+            for node in nodes:
+                node["value"] = node["value"].quantize(Decimal("0.01"))
+                node["children"] = sorted(
+                    node["children"], key=lambda c: c["value"], reverse=True
+                )
+            return {"mode": mode, "nodes": nodes}
+
+        # structure: party → person → object (with costs rolled into leaves)
+        party_names = {p.id: p.name for p in self.db.query(Party).all()}
+        person_names = {p.id: p.name for p in self.db.query(Person).all()}
+        roots: dict[str, dict] = {}
+
+        def ensure(path: list[tuple[str, str]]) -> dict:
+            """path = [(id_key, name), ...] under synthetic root."""
+            current = roots
+            node = None
+            for key, name in path:
+                if key not in current:
+                    current[key] = {"id": key, "name": name, "value": Decimal("0.00"), "children": {}}
+                node = current[key]
+                current = node["children"]
+            return node  # type: ignore[return-value]
+
+        for item, amount in self._iter_expense_snapshots(
+            items,
+            reference_month=reference_month,
+            person_id=person_id,
+            party_id=party_id,
+            household=household,
+            person_party=person_party,
+        ):
+            party_key = "ohne_partei"
+            party_label = "Ohne Partei"
+            person_key = "ohne_person"
+            person_label = "Ohne Person"
+            object_key = f"item:{item.id}"
+            object_label = item.name
+
+            if item.object:
+                object_key = f"object:{item.object.id}"
+                object_label = item.object.name
+                if item.object.party_id and item.object.party_id in party_names:
+                    party_key = f"party:{item.object.party_id}"
+                    party_label = party_names[item.object.party_id]
+                if item.object.person_id and item.object.person_id in person_names:
+                    person_key = f"person:{item.object.person_id}"
+                    person_label = person_names[item.object.person_id]
+                    mapped = person_party.get(item.object.person_id)
+                    if mapped and mapped in party_names and party_key == "ohne_partei":
+                        party_key = f"party:{mapped}"
+                        party_label = party_names[mapped]
+
+            leaf = ensure(
+                [
+                    (party_key, party_label),
+                    (person_key, person_label),
+                    (object_key, object_label),
+                ]
+            )
+            leaf["value"] += amount
+            party_node = roots[party_key]
+            party_node["value"] += amount
+            person_node = party_node["children"][person_key]
+            person_node["value"] += amount
+
+        def freeze(node_map: dict) -> list[dict]:
+            result = []
+            for node in sorted(node_map.values(), key=lambda n: n["value"], reverse=True):
+                children = freeze(node["children"]) if isinstance(node["children"], dict) else []
+                result.append(
+                    {
+                        "id": node["id"],
+                        "name": node["name"],
+                        "value": node["value"].quantize(Decimal("0.01")),
+                        "children": children,
+                    }
+                )
+            return result
+
+        return {"mode": mode, "nodes": freeze(roots)}
+
+    def heatmap(
+        self,
+        *,
+        year: int | None = None,
+        object_id: int | None = None,
+        person_id: int | None = None,
+        party_id: int | None = None,
+        household: bool = False,
+        category_id: int | None = None,
+        tag_id: int | None = None,
+    ) -> dict:
+        self._validate_share_filters(person_id=person_id, party_id=party_id, household=household)
+        selected_year, months, _ = self._resolve_year(year)
+        items = self._load_items_for_charts(
+            object_id=object_id, category_id=category_id, tag_id=tag_id
+        )
+        person_party = self._person_party_map()
+
+        month_labels = [f"{m.year}-{m.month:02d}" for m in months]
+        cat_totals: dict[str, list[Decimal]] = {}
+
+        for item in items:
+            if is_one_time(item) or is_income(item):
+                continue
+            factor = self._share_factor(
+                item,
+                person_id=person_id,
+                party_id=party_id,
+                household=household,
+                person_party=person_party,
+            )
+            if factor is None:
+                continue
+            cat_name = item.category.name if item.category else "Unbekannt"
+            if cat_name not in cat_totals:
+                cat_totals[cat_name] = [Decimal("0.00") for _ in months]
+            history = sorted(item.price_history, key=lambda h: (h.valid_from, h.id))
+            for idx, month in enumerate(months):
+                amount = (
+                    unsigned_contribution_in_month(item, month, history) * factor
+                ).quantize(Decimal("0.01"))
+                cat_totals[cat_name][idx] += amount
+
+        # drop empty categories
+        categories = [
+            name
+            for name, series in sorted(
+                cat_totals.items(),
+                key=lambda kv: sum(kv[1], Decimal("0")),
+                reverse=True,
+            )
+            if sum(series, Decimal("0")) > 0
+        ]
+        values = [
+            [float(cat_totals[name][m_idx].quantize(Decimal("0.01"))) for m_idx in range(len(months))]
+            for name in categories
+        ]
+        return {
+            "year": selected_year,
+            "categories": categories,
+            "months": month_labels,
+            "values": values,
+        }
+
+    def flow(
+        self,
+        *,
+        year: int | None = None,
+        object_id: int | None = None,
+        person_id: int | None = None,
+        party_id: int | None = None,
+        household: bool = False,
+        category_id: int | None = None,
+        tag_id: int | None = None,
+    ) -> dict:
+        """Sankey: allocation source → category."""
+        self._validate_share_filters(person_id=person_id, party_id=party_id, household=household)
+        _, _, reference_month = self._resolve_year(year)
+        items = self._load_items_for_charts(
+            object_id=object_id, category_id=category_id, tag_id=tag_id
+        )
+        person_party = self._person_party_map()
+        person_names = {p.id: p.name for p in self.db.query(Person).all()}
+        party_names = {p.id: p.name for p in self.db.query(Party).all()}
+
+        link_map: dict[tuple[str, str], Decimal] = defaultdict(lambda: Decimal("0.00"))
+
+        for item, amount in self._iter_expense_snapshots(
+            items,
+            reference_month=reference_month,
+            person_id=person_id,
+            party_id=party_id,
+            household=household,
+            person_party=person_party,
+        ):
+            cat = item.category.name if item.category else "Unbekannt"
+            if item.allocations:
+                for alloc in item.allocations:
+                    share = (amount * Decimal(alloc.percentage) / Decimal("100")).quantize(
+                        Decimal("0.01")
+                    )
+                    if share <= 0:
+                        continue
+                    if alloc.is_household:
+                        source = "Haushalt"
+                    elif alloc.person_id and alloc.person_id in person_names:
+                        source = person_names[alloc.person_id]
+                    elif alloc.party_id and alloc.party_id in party_names:
+                        source = party_names[alloc.party_id]
+                    else:
+                        source = "Unbekannt"
+                    link_map[(source, cat)] += share
+            elif item.object and item.object.person_id and item.object.person_id in person_names:
+                link_map[(person_names[item.object.person_id], cat)] += amount
+            elif item.object and item.object.party_id and item.object.party_id in party_names:
+                link_map[(party_names[item.object.party_id], cat)] += amount
+            else:
+                link_map[("Haushalt", cat)] += amount
+
+        nodes_set: set[str] = set()
+        links = []
+        for (source, target), value in sorted(link_map.items(), key=lambda x: x[1], reverse=True):
+            if value <= 0:
+                continue
+            nodes_set.add(source)
+            nodes_set.add(target)
+            links.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "value": float(value.quantize(Decimal("0.01"))),
+                }
+            )
+        nodes = [{"name": name} for name in sorted(nodes_set)]
+        return {"nodes": nodes, "links": links}

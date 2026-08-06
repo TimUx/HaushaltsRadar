@@ -29,12 +29,16 @@ import GroupsIcon from '@mui/icons-material/GroupsOutlined'
 import CategoryIcon from '@mui/icons-material/CategoryOutlined'
 import LabelIcon from '@mui/icons-material/LabelOutlined'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccountsOutlined'
+import StorageIcon from '@mui/icons-material/StorageOutlined'
 import DarkModeIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeIcon from '@mui/icons-material/LightModeOutlined'
 import LoginIcon from '@mui/icons-material/Login'
 import LogoutIcon from '@mui/icons-material/Logout'
-import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
+import AssessmentIcon from '@mui/icons-material/AssessmentOutlined'
+import InsightsIcon from '@mui/icons-material/InsightsOutlined'
+import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { MyFinancesButton } from '../components/MyFinancesButton'
 
 const DRAWER_WIDTH = 240
 
@@ -59,7 +63,25 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const { isAuthenticated, user, logout } = useAuth()
+
+  const financePaths = ['/', '/analysen', '/historie', '/kostenuebersicht', '/kosten']
+  const myFinancesActive = new URLSearchParams(location.search).get('meine') === '1'
+
+  function toggleMyFinances() {
+    if (!user?.person_id) return
+    const target = financePaths.includes(location.pathname) ? location.pathname : '/'
+    const params = new URLSearchParams(location.pathname === target ? location.search : '')
+    if (myFinancesActive && location.pathname === target) {
+      params.delete('meine')
+      const qs = params.toString()
+      navigate(qs ? `${target}?${qs}` : target)
+      return
+    }
+    params.set('meine', '1')
+    navigate(`${target}?${params.toString()}`)
+  }
 
   const navSections = useMemo<NavSection[]>(() => {
     if (!isAuthenticated || !user) return []
@@ -69,6 +91,8 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
         title: 'Überblick',
         items: [
           { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
+          { label: 'Analysen', to: '/analysen', icon: <InsightsIcon /> },
+          { label: 'Berichte', to: '/berichte', icon: <AssessmentIcon /> },
           { label: 'Struktur', to: '/struktur', icon: <AccountTreeIcon /> },
           { label: 'Kostenübersicht', to: '/kostenuebersicht', icon: <TableChartIcon /> },
           { label: 'Histororie', to: '/historie', icon: <TimelineIcon /> },
@@ -77,24 +101,34 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
     ]
 
     if (user.role === 'admin' || user.role === 'user') {
-      sections.push({
-        title: 'Verwaltung',
-        items: [
-          { label: 'Kosten', to: '/kosten', icon: <PaymentsIcon /> },
-          { label: 'Verträge', to: '/vertraege', icon: <DescriptionIcon /> },
-          { label: 'Personen', to: '/personen', icon: <PeopleIcon /> },
-          { label: 'Parteien', to: '/parteien', icon: <GroupsIcon /> },
-          { label: 'Objekte', to: '/objekte', icon: <HomeWorkIcon /> },
-          { label: 'Kategorien', to: '/kategorien', icon: <CategoryIcon /> },
-          { label: 'Tags', to: '/tags', icon: <LabelIcon /> },
-        ],
-      })
+      sections.push(
+        {
+          title: 'Finanzen',
+          items: [
+            { label: 'Posten', to: '/kosten', icon: <PaymentsIcon /> },
+            { label: 'Verträge', to: '/vertraege', icon: <DescriptionIcon /> },
+          ],
+        },
+        {
+          title: 'Organisation',
+          items: [
+            { label: 'Personen', to: '/personen', icon: <PeopleIcon /> },
+            { label: 'Parteien', to: '/parteien', icon: <GroupsIcon /> },
+            { label: 'Objekte', to: '/objekte', icon: <HomeWorkIcon /> },
+            { label: 'Kategorien', to: '/kategorien', icon: <CategoryIcon /> },
+            { label: 'Tags', to: '/tags', icon: <LabelIcon /> },
+          ],
+        },
+      )
     }
 
     if (user.role === 'admin') {
       sections.push({
         title: 'Administration',
-        items: [{ label: 'Benutzer', to: '/benutzer', icon: <ManageAccountsIcon /> }],
+        items: [
+          { label: 'Benutzer', to: '/benutzer', icon: <ManageAccountsIcon /> },
+          { label: 'Daten & Backup', to: '/verwaltung', icon: <StorageIcon /> },
+        ],
       })
     }
 
@@ -200,6 +234,11 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             {pageTitle}
           </Typography>
+          {isAuthenticated && (
+            <Box sx={{ mr: 1, display: { xs: 'none', sm: 'block' } }}>
+              <MyFinancesButton active={myFinancesActive} onToggle={toggleMyFinances} />
+            </Box>
+          )}
           <IconButton onClick={onToggleMode} aria-label="Theme umschalten">
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>

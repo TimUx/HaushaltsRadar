@@ -5,6 +5,14 @@ export type PaymentInterval =
   | 'semiannual'
   | 'annual'
   | 'custom'
+  | 'one_time'
+
+export type EntryType = 'expense' | 'income'
+
+export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {
+  expense: 'Ausgabe',
+  income: 'Einnahme',
+}
 
 export interface NamedAmount {
   id?: number | null
@@ -20,11 +28,21 @@ export interface UpcomingDue {
   due_label: string
   amount: string | number
   payment_interval: PaymentInterval
+  entry_type?: EntryType
 }
 
 export interface DashboardSummary {
+  year: number
   monthly_fixed_costs: string | number
   yearly_fixed_costs: string | number
+  monthly_income: string | number
+  yearly_income: string | number
+  monthly_net: string | number
+  yearly_net: string | number
+  ytd_fixed_costs: string | number
+  ytd_income: string | number
+  one_time_expense: string | number
+  one_time_income: string | number
   active_contracts: number
   active_cost_items: number
   costs_by_person: NamedAmount[]
@@ -81,6 +99,7 @@ export interface User {
   username: string
   role: UserRole
   is_active: boolean
+  person_id?: number | null
 }
 
 export interface Person {
@@ -137,6 +156,7 @@ export interface CostItem {
   contract_partner?: string | null
   amount: string | number
   currency: string
+  entry_type: EntryType
   payment_interval: PaymentInterval
   custom_interval_months?: number | null
   start_date?: string | null
@@ -149,6 +169,17 @@ export interface CostItem {
   allocations: CostAllocation[]
   monthly_amount: string | number
   yearly_amount: string | number
+}
+
+export interface PriceHistoryEntry {
+  id: number
+  cost_item_id: number
+  amount: string | number
+  monthly_amount: string | number
+  valid_from: string
+  event_type: string
+  notes?: string | null
+  created_at?: string
 }
 
 export interface Contract {
@@ -174,9 +205,13 @@ export interface CostOverviewRow {
   object?: string | null
   object_party?: string | null
   object_person?: string | null
+  object_person_id?: number | null
+  related_person_ids?: number[]
   contract_partner?: string | null
   amount: string | number
   currency: string
+  entry_type: EntryType
+  entry_type_label: string
   payment_interval: PaymentInterval
   payment_interval_label: string
   monthly_amount: string | number
@@ -203,6 +238,7 @@ export const INTERVAL_LABELS: Record<PaymentInterval, string> = {
   semiannual: 'Halbjährlich',
   annual: 'Jährlich',
   custom: 'Individuell',
+  one_time: 'Einmalig',
 }
 
 export const MONTH_LABELS: Record<number, string> = {
@@ -221,5 +257,5 @@ export const MONTH_LABELS: Record<number, string> = {
 }
 
 export function intervalNeedsDueMonth(interval: PaymentInterval): boolean {
-  return interval !== 'monthly' && interval !== 'bimonthly'
+  return interval !== 'monthly' && interval !== 'bimonthly' && interval !== 'one_time'
 }

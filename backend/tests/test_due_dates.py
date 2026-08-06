@@ -8,6 +8,7 @@ def test_needs_due_month():
     assert needs_due_month(PaymentInterval.monthly) is False
     assert needs_due_month(PaymentInterval.annual) is True
     assert needs_due_month(PaymentInterval.quarterly) is True
+    assert needs_due_month(PaymentInterval.one_time) is False
 
 
 def test_format_due_label_monthly():
