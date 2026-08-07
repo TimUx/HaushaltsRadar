@@ -32,6 +32,7 @@ class RefreshRequest(BaseModel):
 class UserRead(ORMModel):
     id: int
     username: str
+    email: Optional[str] = None
     role: str
     is_active: bool
     person_id: Optional[int] = None
@@ -41,6 +42,7 @@ class UserRead(ORMModel):
 class UserCreate(BaseModel):
     username: str = Field(min_length=2, max_length=100)
     password: str = Field(min_length=6, max_length=200)
+    email: Optional[str] = Field(default=None, max_length=255)
     role: str = "user"
     is_active: bool = True
     person_id: Optional[int] = None
@@ -49,6 +51,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     username: Optional[str] = Field(default=None, min_length=2, max_length=100)
     password: Optional[str] = Field(default=None, min_length=6, max_length=200)
+    email: Optional[str] = Field(default=None, max_length=255)
     role: Optional[str] = None
     is_active: Optional[bool] = None
     person_id: Optional[int] = None
@@ -60,6 +63,7 @@ class UserUpdate(BaseModel):
 class PersonBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     color: Optional[str] = None
+    email: Optional[str] = Field(default=None, max_length=255)
     notes: Optional[str] = None
     party_id: Optional[int] = None
     is_active: bool = True
@@ -72,6 +76,7 @@ class PersonCreate(PersonBase):
 class PersonUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     color: Optional[str] = None
+    email: Optional[str] = Field(default=None, max_length=255)
     notes: Optional[str] = None
     party_id: Optional[int] = None
     is_active: Optional[bool] = None
@@ -467,3 +472,48 @@ class DashboardSummary(BaseModel):
     costs_by_category: list[NamedAmount]
     top_cost_blocks: list[NamedAmount]
     upcoming_dues: list[UpcomingDue]
+
+
+# --- SMTP / Reminders ---
+
+
+class SmtpSettingsRead(BaseModel):
+    enabled: bool
+    host: Optional[str] = None
+    port: int = 587
+    use_tls: bool = True
+    use_ssl: bool = False
+    username: Optional[str] = None
+    password_set: bool = False
+    from_email: Optional[str] = None
+    from_name: Optional[str] = None
+    default_cc_email: Optional[str] = None
+    remind_days_before: str = "30,14,7,1"
+
+
+class SmtpSettingsUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    host: Optional[str] = Field(default=None, max_length=255)
+    port: Optional[int] = Field(default=None, ge=1, le=65535)
+    use_tls: Optional[bool] = None
+    use_ssl: Optional[bool] = None
+    username: Optional[str] = Field(default=None, max_length=255)
+    password: Optional[str] = Field(default=None, max_length=500)
+    clear_password: Optional[bool] = None
+    from_email: Optional[str] = Field(default=None, max_length=255)
+    from_name: Optional[str] = Field(default=None, max_length=200)
+    default_cc_email: Optional[str] = Field(default=None, max_length=255)
+    remind_days_before: Optional[str] = Field(default=None, max_length=100)
+
+
+class SmtpTestRequest(BaseModel):
+    to_email: Optional[str] = Field(default=None, max_length=255)
+
+
+class ReminderRunResult(BaseModel):
+    status: str
+    sent: int = 0
+    skipped: int = 0
+    candidates: int = 0
+    reason: Optional[str] = None
+    errors: list[str] = Field(default_factory=list)

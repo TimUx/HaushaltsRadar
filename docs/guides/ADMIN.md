@@ -64,6 +64,18 @@ Nach dem Start erreichst du die Anmeldung unter dem Frontend-Port:
 
 Es muss immer mindestens ein aktiver Admin existieren; die App verhindert das Deaktivieren/Herabstufen des letzten Admins.
 
+## E-Mail / SMTP-Erinnerungen
+
+Pfad: **Administration → E-Mail / SMTP**
+
+- SMTP aktivieren, Host/Port/TLS, Absender und **Default-E-Mail (CC)** setzen
+- Erinnerungstage vor Stichtag (Standard `30,14,7,1`) für Kündigungsfrist und Vertragsende
+- Täglicher Job um 07:00 (Europe/Berlin); manuell: „Erinnerungen jetzt prüfen“
+- Empfänger: Benutzer-E-Mail (wenn Person verknüpft), sonst Personen-E-Mail; bei Partei-Zuordnung alle Personen der Partei
+- Ohne Zuordnung oder ohne Empfänger-Adresse: Versand an die Default-E-Mail
+
+E-Mail-Adressen pflegen unter **Benutzer** und **Personen**. Am Vertrag **Vertragsende** und **Kündigungsfrist** setzen.
+
 ## Benutzerverwaltung
 
 Pfad: **Administration → Benutzer**

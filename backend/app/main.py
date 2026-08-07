@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,8 +12,11 @@ from app.db.schema import ensure_schema
 from app.db.session import SessionLocal, engine
 from app.services.bootstrap import ensure_bootstrap_admin, seed_categories
 from app.services.cost_history import backfill_missing_history
+from app.services.reminders import run_reminders_job
 from app.services.sample_data import seed_sample_data
 import app.models  # noqa: F401
+
+_scheduler: BackgroundScheduler | None = None
 
 
 def create_app(*, run_bootstrap: bool = True) -> FastAPI:
@@ -20,6 +24,7 @@ def create_app(*, run_bootstrap: bool = True) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        global _scheduler
         setup_logging()
         if run_bootstrap:
             Base.metadata.create_all(bind=engine)
@@ -33,7 +38,23 @@ def create_app(*, run_bootstrap: bool = True) -> FastAPI:
                 backfill_missing_history(db)
             finally:
                 db.close()
-        yield
+
+            _scheduler = BackgroundScheduler(timezone="Europe/Berlin")
+            _scheduler.add_job(
+                run_reminders_job,
+                trigger="cron",
+                hour=7,
+                minute=0,
+                id="contract_reminders",
+                replace_existing=True,
+            )
+            _scheduler.start()
+        try:
+            yield
+        finally:
+            if _scheduler is not None:
+                _scheduler.shutdown(wait=False)
+                _scheduler = None
 
     app = FastAPI(
         title=settings.app_name,

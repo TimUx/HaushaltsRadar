@@ -160,6 +160,42 @@ def ensure_schema(engine: Engine) -> None:
             END IF;
         END $$
         """,
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)",
+        "ALTER TABLE persons ADD COLUMN IF NOT EXISTS email VARCHAR(255)",
+        """
+        CREATE TABLE IF NOT EXISTS smtp_settings (
+            id SERIAL PRIMARY KEY,
+            enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            host VARCHAR(255),
+            port INTEGER NOT NULL DEFAULT 587,
+            use_tls BOOLEAN NOT NULL DEFAULT TRUE,
+            use_ssl BOOLEAN NOT NULL DEFAULT FALSE,
+            username VARCHAR(255),
+            password VARCHAR(500),
+            from_email VARCHAR(255),
+            from_name VARCHAR(200),
+            default_cc_email VARCHAR(255),
+            remind_days_before VARCHAR(100) NOT NULL DEFAULT '30,14,7,1',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS reminder_logs (
+            id SERIAL PRIMARY KEY,
+            contract_id INTEGER NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+            reminder_type VARCHAR(40) NOT NULL,
+            target_date DATE NOT NULL,
+            lead_days INTEGER NOT NULL,
+            recipients TEXT,
+            sent_at TIMESTAMPTZ NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            CONSTRAINT uq_reminder_contract_type_target_lead
+                UNIQUE (contract_id, reminder_type, target_date, lead_days)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_reminder_logs_contract_id ON reminder_logs(contract_id)",
     ]
     with engine.begin() as conn:
         for statement in statements:

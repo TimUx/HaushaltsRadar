@@ -97,6 +97,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 export interface User {
   id: number
   username: string
+  email?: string | null
   role: UserRole
   is_active: boolean
   person_id?: number | null
@@ -106,6 +107,7 @@ export interface Person {
   id: number
   name: string
   color?: string | null
+  email?: string | null
   notes?: string | null
   party_id?: number | null
   is_active: boolean
@@ -258,4 +260,27 @@ export const MONTH_LABELS: Record<number, string> = {
 
 export function intervalNeedsDueMonth(interval: PaymentInterval): boolean {
   return interval !== 'monthly' && interval !== 'bimonthly' && interval !== 'one_time'
+}
+
+export interface SmtpSettings {
+  enabled: boolean
+  host?: string | null
+  port: number
+  use_tls: boolean
+  use_ssl: boolean
+  username?: string | null
+  password_set: boolean
+  from_email?: string | null
+  from_name?: string | null
+  default_cc_email?: string | null
+  remind_days_before: string
+}
+
+export interface ReminderRunResult {
+  status: string
+  sent: number
+  skipped: number
+  candidates?: number
+  reason?: string | null
+  errors?: string[]
 }

@@ -42,6 +42,7 @@ export function PersonsPage() {
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [notes, setNotes] = useState('')
   const [partyId, setPartyId] = useState<number | ''>('')
   const [isActive, setIsActive] = useState(true)
@@ -53,6 +54,7 @@ export function PersonsPage() {
     mutationFn: async () => {
       const body = {
         name,
+        email: email.trim() || null,
         notes: notes || null,
         party_id: partyId === '' ? null : partyId,
         is_active: isActive,
@@ -64,6 +66,7 @@ export function PersonsPage() {
       setOpen(false)
       setEditingId(null)
       setName('')
+      setEmail('')
       setNotes('')
       setPartyId('')
       setIsActive(true)
@@ -85,6 +88,7 @@ export function PersonsPage() {
   function openCreate() {
     setEditingId(null)
     setName('')
+    setEmail('')
     setNotes('')
     setPartyId('')
     setIsActive(true)
@@ -94,6 +98,7 @@ export function PersonsPage() {
   function openEdit(person: Person) {
     setEditingId(person.id)
     setName(person.name)
+    setEmail(person.email || '')
     setNotes(person.notes || '')
     setPartyId(person.party_id ?? '')
     setIsActive(person.is_active)
@@ -123,6 +128,7 @@ export function PersonsPage() {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
+              <TableCell>E-Mail</TableCell>
               <TableCell>Partei</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="right">Aktionen</TableCell>
@@ -132,6 +138,7 @@ export function PersonsPage() {
             {data.map((person) => (
               <TableRow key={person.id}>
                 <TableCell>{person.name}</TableCell>
+                <TableCell>{person.email || '–'}</TableCell>
                 <TableCell>{partyName(person.party_id)}</TableCell>
                 <TableCell>{person.is_active ? 'Aktiv' : 'Inaktiv'}</TableCell>
                 <TableCell align="right">
@@ -164,6 +171,14 @@ export function PersonsPage() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+              />
+              <TextField
+                label="E-Mail"
+                type="email"
+                fullWidth
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                helperText="Falls kein Benutzer verknüpft ist – für Vertrags-Erinnerungen"
               />
               <FormControl fullWidth>
                 <InputLabel>Partei</InputLabel>

@@ -30,6 +30,7 @@ import CategoryIcon from '@mui/icons-material/CategoryOutlined'
 import LabelIcon from '@mui/icons-material/LabelOutlined'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccountsOutlined'
 import StorageIcon from '@mui/icons-material/StorageOutlined'
+import EmailIcon from '@mui/icons-material/EmailOutlined'
 import DarkModeIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeIcon from '@mui/icons-material/LightModeOutlined'
 import LoginIcon from '@mui/icons-material/Login'
@@ -128,6 +129,7 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
         title: 'Administration',
         items: [
           { label: 'Benutzer', to: '/benutzer', icon: <ManageAccountsIcon /> },
+          { label: 'E-Mail / SMTP', to: '/smtp', icon: <EmailIcon /> },
           { label: 'Daten & Backup', to: '/verwaltung', icon: <StorageIcon /> },
         ],
       })

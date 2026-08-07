@@ -10,6 +10,8 @@ import type {
   Party,
   Person,
   PriceHistoryEntry,
+  ReminderRunResult,
+  SmtpSettings,
   Tag,
   User,
   UserRole,
@@ -305,6 +307,7 @@ export const usersApi = {
   create: (body: {
     username: string
     password: string
+    email?: string | null
     role: UserRole
     is_active?: boolean
     person_id?: number | null
@@ -314,12 +317,31 @@ export const usersApi = {
     body: {
       username?: string
       password?: string
+      email?: string | null
       role?: UserRole
       is_active?: boolean
       person_id?: number | null
     },
   ) => apiFetch<User>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }, true),
   remove: (id: number) => apiFetch<void>(`/users/${id}`, { method: 'DELETE' }, true),
+}
+
+export const smtpApi = {
+  get: () => apiFetch<SmtpSettings>('/admin/smtp', {}, true),
+  update: (body: Partial<SmtpSettings> & { password?: string; clear_password?: boolean }) =>
+    apiFetch<SmtpSettings>(
+      '/admin/smtp',
+      { method: 'PUT', body: JSON.stringify(body) },
+      true,
+    ),
+  test: (to_email?: string) =>
+    apiFetch<{ status: string; to: string }>(
+      '/admin/smtp/test',
+      { method: 'POST', body: JSON.stringify({ to_email: to_email || null }) },
+      true,
+    ),
+  runReminders: () =>
+    apiFetch<ReminderRunResult>('/admin/smtp/run-reminders', { method: 'POST' }, true),
 }
 
 function triggerDownload(blob: Blob, filename: string) {

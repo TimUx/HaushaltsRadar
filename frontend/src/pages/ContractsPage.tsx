@@ -41,6 +41,7 @@ type FormState = {
   provider: string
   costItemId: number | ''
   noticeDays: string
+  endDate: string
   contractNumber: string
   autoRenewal: boolean
   notes: string
@@ -52,6 +53,7 @@ function defaultForm(): FormState {
     provider: '',
     costItemId: '',
     noticeDays: '90',
+    endDate: '',
     contractNumber: '',
     autoRenewal: true,
     notes: '',
@@ -96,6 +98,7 @@ export function ContractsPage() {
         provider: form.provider,
         cost_item_id: costItemId,
         notice_period_days: form.noticeDays ? Number(form.noticeDays) : null,
+        end_date: form.endDate || null,
         contract_number: form.contractNumber || null,
         auto_renewal: form.autoRenewal,
         notes: form.notes || null,
@@ -108,6 +111,7 @@ export function ContractsPage() {
         contract = await contractsApi.update(editingId, {
           provider: form.provider,
           notice_period_days: form.noticeDays ? Number(form.noticeDays) : null,
+          end_date: form.endDate || null,
           contract_number: form.contractNumber || null,
           auto_renewal: form.autoRenewal,
           notes: form.notes || null,
@@ -167,6 +171,7 @@ export function ContractsPage() {
       costItemId: contract.cost_item_id,
       noticeDays:
         contract.notice_period_days != null ? String(contract.notice_period_days) : '',
+      endDate: contract.end_date || '',
       contractNumber: contract.contract_number || '',
       autoRenewal: contract.auto_renewal,
       notes: contract.notes || '',
@@ -215,6 +220,7 @@ export function ContractsPage() {
             <TableRow>
               <TableCell>Anbieter</TableCell>
               <TableCell>Kostenposition</TableCell>
+              <TableCell>Vertragsende</TableCell>
               <TableCell>Kündigungsfrist</TableCell>
               <TableCell align="right">Aktionen</TableCell>
             </TableRow>
@@ -224,6 +230,7 @@ export function ContractsPage() {
               <TableRow key={contract.id}>
                 <TableCell>{contract.provider}</TableCell>
                 <TableCell>{costItemName(contract.cost_item_id)}</TableCell>
+                <TableCell>{contract.end_date || '–'}</TableCell>
                 <TableCell>
                   {contract.notice_period_days != null
                     ? `${contract.notice_period_days} Tage`
@@ -279,6 +286,15 @@ export function ContractsPage() {
                 fullWidth
                 value={form.contractNumber}
                 onChange={(e) => setForm((f) => ({ ...f, contractNumber: e.target.value }))}
+              />
+              <TextField
+                label="Vertragsende"
+                type="date"
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={form.endDate}
+                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                helperText="Benötigt für Erinnerungen zu Kündigungsfrist und Vertragsende"
               />
               <TextField
                 label="Kündigungsfrist (Tage)"

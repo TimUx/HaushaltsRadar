@@ -52,6 +52,7 @@ def create_user(
     user = User(
         username=payload.username.strip(),
         password_hash=hash_password(payload.password),
+        email=(payload.email.strip() if payload.email else None),
         role=_parse_role(payload.role),
         is_active=payload.is_active,
         person_id=_resolve_person_id(db, payload.person_id),
@@ -94,6 +95,8 @@ def update_user(
         user.username = data["username"].strip()
     if "password" in data and data["password"]:
         user.password_hash = hash_password(data["password"])
+    if "email" in data:
+        user.email = data["email"].strip() if data["email"] else None
     if "role" in data:
         user.role = new_role
     if "is_active" in data:

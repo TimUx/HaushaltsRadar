@@ -69,6 +69,7 @@ class User(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     role: Mapped[UserRole] = mapped_column(
         Enum(
             UserRole,
@@ -98,6 +99,7 @@ class Person(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     party_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("parties.id", ondelete="SET NULL"), nullable=True
@@ -331,3 +333,52 @@ class DocumentLink(Base, TimestampMixin):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     cost_item: Mapped[CostItem] = relationship(back_populates="document_links")
+
+
+class SmtpSettings(Base, TimestampMixin):
+    """Singleton-ish SMTP configuration (id=1)."""
+
+    __tablename__ = "smtp_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    host: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    port: Mapped[int] = mapped_column(Integer, default=587, nullable=False)
+    use_tls: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    use_ssl: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    password: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    from_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    from_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    default_cc_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # Comma-separated lead days before notice deadline / contract end, e.g. "30,14,7,1"
+    remind_days_before: Mapped[str] = mapped_column(
+        String(100), default="30,14,7,1", nullable=False
+    )
+
+
+class ReminderLog(Base, TimestampMixin):
+    """Deduplicate sent contract reminders."""
+
+    __tablename__ = "reminder_logs"
+    __table_args__ = (
+        UniqueConstraint(
+            "contract_id",
+            "reminder_type",
+            "target_date",
+            "lead_days",
+            name="uq_reminder_contract_type_target_lead",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    contract_id: Mapped[int] = mapped_column(
+        ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reminder_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    target_date: Mapped[date] = mapped_column(Date, nullable=False)
+    lead_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    recipients: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )

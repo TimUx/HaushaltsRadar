@@ -51,6 +51,7 @@ export function UsersPage() {
   const [role, setRole] = useState<UserRole>('user')
   const [isActive, setIsActive] = useState(true)
   const [personId, setPersonId] = useState<number | ''>('')
+  const [email, setEmail] = useState('')
 
   const personName = (id: number | null | undefined) =>
     id == null ? '–' : persons.find((p) => p.id === id)?.name || `#${id}`
@@ -58,18 +59,21 @@ export function UsersPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const linkedPerson = personId === '' ? null : personId
+      const emailValue = email.trim() || null
       if (editing) {
         const body: {
           username: string
           role: UserRole
           is_active: boolean
           person_id: number | null
+          email: string | null
           password?: string
         } = {
           username,
           role,
           is_active: isActive,
           person_id: linkedPerson,
+          email: emailValue,
         }
         if (password) body.password = password
         return usersApi.update(editing.id, body)
@@ -77,6 +81,7 @@ export function UsersPage() {
       return usersApi.create({
         username,
         password,
+        email: emailValue,
         role,
         is_active: isActive,
         person_id: linkedPerson,
@@ -87,6 +92,7 @@ export function UsersPage() {
       setEditing(null)
       setUsername('')
       setPassword('')
+      setEmail('')
       setRole('user')
       setIsActive(true)
       setPersonId('')
@@ -108,6 +114,7 @@ export function UsersPage() {
     setEditing(null)
     setUsername('')
     setPassword('')
+    setEmail('')
     setRole('user')
     setIsActive(true)
     setPersonId('')
@@ -118,6 +125,7 @@ export function UsersPage() {
     setEditing(user)
     setUsername(user.username)
     setPassword('')
+    setEmail(user.email || '')
     setRole(user.role)
     setIsActive(user.is_active)
     setPersonId(user.person_id ?? '')
@@ -155,6 +163,7 @@ export function UsersPage() {
           <TableHead>
             <TableRow>
               <TableCell>Benutzername</TableCell>
+              <TableCell>E-Mail</TableCell>
               <TableCell>Rolle</TableCell>
               <TableCell>Person</TableCell>
               <TableCell>Status</TableCell>
@@ -168,6 +177,7 @@ export function UsersPage() {
                   {user.username}
                   {currentUser?.id === user.id ? ' (Sie)' : ''}
                 </TableCell>
+                <TableCell>{user.email || '–'}</TableCell>
                 <TableCell>{ROLE_LABELS[user.role]}</TableCell>
                 <TableCell>{personName(user.person_id)}</TableCell>
                 <TableCell>{user.is_active ? 'Aktiv' : 'Deaktiviert'}</TableCell>
@@ -210,6 +220,14 @@ export function UsersPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 helperText={editing ? 'Leer lassen, um das Passwort nicht zu ändern' : 'Mindestens 6 Zeichen'}
+              />
+              <TextField
+                label="E-Mail"
+                type="email"
+                fullWidth
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                helperText="Für Vertrags-Erinnerungen (hat Vorrang vor der Personen-E-Mail)"
               />
               <FormControl fullWidth>
                 <InputLabel>Rolle</InputLabel>

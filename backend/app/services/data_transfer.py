@@ -92,6 +92,7 @@ def export_bundle(db: Session) -> dict[str, Any]:
                 "id": p.id,
                 "name": p.name,
                 "color": p.color,
+                "email": p.email,
                 "notes": p.notes,
                 "party_id": p.party_id,
                 "is_active": p.is_active,
@@ -219,6 +220,7 @@ def export_bundle(db: Session) -> dict[str, Any]:
                 "id": u.id,
                 "username": u.username,
                 "password_hash": u.password_hash,
+                "email": u.email,
                 "role": _jsonable(u.role),
                 "is_active": u.is_active,
                 "person_id": u.person_id,
@@ -239,6 +241,9 @@ def export_bundle(db: Session) -> dict[str, Any]:
 
 def _clear_all(db: Session) -> None:
     """Delete all transferable rows in FK-safe order."""
+    from app.models import ReminderLog, SmtpSettings, Subcategory
+
+    db.execute(delete(ReminderLog))
     db.execute(delete(DocumentLink))
     db.execute(delete(PriceHistory))
     db.execute(delete(Contract))
@@ -246,15 +251,13 @@ def _clear_all(db: Session) -> None:
     db.execute(delete(cost_item_tags))
     db.execute(delete(CostItem))
     db.execute(delete(Tag))
-    # Legacy table may be empty
-    from app.models import Subcategory
-
     db.execute(delete(Subcategory))
     db.execute(delete(Category))
     db.execute(delete(ObjectEntity))
     db.execute(delete(Person))
     db.execute(delete(Party))
     db.execute(delete(User))
+    db.execute(delete(SmtpSettings))
     db.flush()
 
 
@@ -321,6 +324,7 @@ def import_bundle(db: Session, bundle: dict[str, Any]) -> dict[str, int]:
                 id=row["id"],
                 name=row["name"],
                 color=row.get("color"),
+                email=row.get("email"),
                 notes=row.get("notes"),
                 party_id=row.get("party_id"),
                 is_active=bool(row.get("is_active", True)),
@@ -453,6 +457,7 @@ def import_bundle(db: Session, bundle: dict[str, Any]) -> dict[str, int]:
                 id=row["id"],
                 username=row["username"],
                 password_hash=row["password_hash"],
+                email=row.get("email"),
                 role=UserRole(row.get("role") or "user"),
                 is_active=bool(row.get("is_active", True)),
                 person_id=row.get("person_id"),

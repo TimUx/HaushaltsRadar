@@ -20,6 +20,7 @@ import { CostItemsPage } from './pages/CostItemsPage'
 import { ContractsPage } from './pages/ContractsPage'
 import { UsersPage } from './pages/UsersPage'
 import { AdminDataPage } from './pages/AdminDataPage'
+import { AdminSmtpPage } from './pages/AdminSmtpPage'
 import { AnalysesPage } from './pages/AnalysesPage'
 import { ReportsPage } from './pages/ReportsPage'
 
@@ -74,6 +75,7 @@ function ThemedApp() {
               </Route>
               <Route element={<ProtectedRoute roles={['admin']} />}>
                 <Route path="benutzer" element={<UsersPage />} />
+                <Route path="smtp" element={<AdminSmtpPage />} />
                 <Route path="verwaltung" element={<AdminDataPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

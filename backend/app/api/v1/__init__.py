@@ -11,6 +11,7 @@ from app.api.v1 import (
     parties,
     persons,
     reports,
+    smtp_settings,
     tags,
     users,
 )
@@ -20,6 +21,7 @@ api_router.include_router(auth.router)
 api_router.include_router(analytics.router)
 api_router.include_router(reports.router)
 api_router.include_router(admin_data.router)
+api_router.include_router(smtp_settings.router)
 api_router.include_router(users.router)
 api_router.include_router(persons.router)
 api_router.include_router(parties.router)
