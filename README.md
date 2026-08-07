@@ -4,7 +4,9 @@ Selbst gehostete Web-App für **Fixkosten, Verträge und wiederkehrende Ausgaben
 
 HaushaltsRadar ist **kein** klassisches Haushaltsbuch und **keine** Banking-Software. Es modelliert Fixkosten, Abos, Versicherungen und ähnliche Positionen, verteilt sie auf Personen/Parteien und macht sie über Dashboards und Diagramme nachvollziehbar.
 
-![Dashboard](docs/screenshots/01-dashboard.png)
+![Dashboard (Hell)](docs/screenshots/01-dashboard.png)
+
+![Dashboard (Dunkel)](docs/screenshots/01-dashboard-dark.png)
 
 *Screenshots zeigen fiktive Demo-Daten (`docs/demo/screenshot-demo-data.json`), keine Echtdaten.*
 

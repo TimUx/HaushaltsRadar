@@ -60,6 +60,8 @@ Es muss immer mindestens ein aktiver Admin existieren; die App verhindert das De
 
 Pfad: **Administration → E-Mail / SMTP**
 
+![E-Mail / SMTP](../screenshots/guides/admin-smtp.png)
+
 - SMTP aktivieren, Host/Port/TLS, Absender und **Default-E-Mail (CC)** setzen
 - Themen einzeln schalten: Kündigungsfrist, Vertragsende, Vertragsbeginn, Preisänderung, Einmalzahlung, Fälligkeiten
 - Erinnerungstage vor Stichtag (Standard `30,14,7,1`) für alle aktivierten Themen
