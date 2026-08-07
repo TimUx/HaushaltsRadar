@@ -118,8 +118,12 @@ npm run build
 ## Auth & API
 
 - Login: `POST /api/v1/auth/login` (OAuth2 Password) bzw. `/auth/login/json`
-- Access- + Refresh-Token (JWT); Gültigkeit über `ACCESS_TOKEN_EXPIRE_MINUTES` / `REFRESH_TOKEN_EXPIRE_DAYS`
-- Rollenprüfung: `require_admin` / rollenbasierte Dependencies in `app/api/deps.py`
+- JSON-Login akzeptiert `remember_me` (längere Access-/Refresh-Token-Laufzeiten; Claim `remember` im JWT)
+- Access- + Refresh-Token (JWT, Subject = User-ID); Frontend speichert in `localStorage` und refresht bei 401
+- Profil: `GET/PATCH /api/v1/auth/me` – Self-Service für Benutzername, E-Mail, Passwort (aktuelles Passwort nötig)
+- Passwort-Reset (nur wenn SMTP ready): `GET /auth/password-reset/available`, `POST .../request`, `POST .../confirm`
+- Gültigkeit: `ACCESS_TOKEN_EXPIRE_MINUTES` / `REFRESH_TOKEN_EXPIRE_DAYS` sowie `*_REMEMBER`; Reset: `PASSWORD_RESET_EXPIRE_MINUTES`
+- Rollenprüfung: `require_admin` / `require_editor` in `app/api/deps.py`
 - OpenAPI interaktiv: http://localhost:8000/docs
 
 Wichtige Endpunkte (Auszug):
@@ -127,6 +131,7 @@ Wichtige Endpunkte (Auszug):
 | Bereich | Pfad |
 |---------|------|
 | Health | `GET /api/v1/health` |
+| Auth / Profil | `/api/v1/auth/*` |
 | Dashboard | `GET /api/v1/analytics/dashboard` |
 | Charts | `GET /api/v1/analytics/breakdown|hierarchy|heatmap|flow` |
 | Periodenbericht | `GET /api/v1/reports/period` |

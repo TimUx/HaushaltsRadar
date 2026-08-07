@@ -11,6 +11,9 @@ import { StructurePage } from './pages/StructurePage'
 import { CostsOverviewPage } from './pages/CostsOverviewPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { LoginPage } from './pages/LoginPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { PersonsPage } from './pages/PersonsPage'
 import { PartiesPage } from './pages/PartiesPage'
 import { ObjectsPage } from './pages/ObjectsPage'
@@ -56,6 +59,8 @@ function ThemedApp() {
           <Routes>
             <Route element={<AppLayout mode={mode} onToggleMode={toggleMode} />}>
               <Route path="login" element={<LoginPage />} />
+              <Route path="passwort-vergessen" element={<ForgotPasswordPage />} />
+              <Route path="passwort-zuruecksetzen" element={<ResetPasswordPage />} />
               <Route element={<ProtectedRoute roles={['admin', 'user', 'viewer']} />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="analysen" element={<AnalysesPage />} />
@@ -63,6 +68,7 @@ function ThemedApp() {
                 <Route path="struktur" element={<StructurePage />} />
                 <Route path="kostenuebersicht" element={<CostsOverviewPage />} />
                 <Route path="historie" element={<HistoryPage />} />
+                <Route path="konto" element={<ProfilePage />} />
               </Route>
               <Route element={<ProtectedRoute roles={['admin', 'user']} />}>
                 <Route path="kosten" element={<CostItemsPage />} />

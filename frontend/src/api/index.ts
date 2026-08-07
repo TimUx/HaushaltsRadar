@@ -206,15 +206,37 @@ export const reportsApi = {
 }
 
 export const authApi = {
-  login: async (username: string, password: string) => {
+  login: async (username: string, password: string, rememberMe = false) => {
     const data = await apiFetch<{ access_token: string; refresh_token: string }>(
       '/auth/login/json',
-      { method: 'POST', body: JSON.stringify({ username, password }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({ username, password, remember_me: rememberMe }),
+      },
     )
     setTokens(data.access_token, data.refresh_token)
     return data
   },
   me: () => apiFetch<User>('/auth/me', {}, true),
+  updateMe: (body: {
+    username?: string
+    email?: string | null
+    current_password?: string
+    new_password?: string
+  }) =>
+    apiFetch<User>('/auth/me', { method: 'PATCH', body: JSON.stringify(body) }, true),
+  passwordResetAvailable: () =>
+    apiFetch<{ available: boolean }>('/auth/password-reset/available'),
+  requestPasswordReset: (identifier: string) =>
+    apiFetch<{ detail: string }>('/auth/password-reset/request', {
+      method: 'POST',
+      body: JSON.stringify({ identifier }),
+    }),
+  confirmPasswordReset: (token: string, new_password: string) =>
+    apiFetch<{ detail: string }>('/auth/password-reset/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password }),
+    }),
   logout: () => clearTokens(),
 }
 

@@ -87,10 +87,32 @@ class User(Base, TimestampMixin):
     )
 
     person = relationship("Person", foreign_keys=[person_id])
+    password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def is_admin(self) -> bool:
         return self.role == UserRole.admin
+
+
+class PasswordResetToken(Base, TimestampMixin):
+    """One-time, time-limited password reset tokens (hashed at rest)."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped[User] = relationship(back_populates="password_reset_tokens")
 
 
 class Person(Base, TimestampMixin):

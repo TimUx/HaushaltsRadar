@@ -18,14 +18,20 @@ class Settings(BaseSettings):
 
     secret_key: str = "change-me-to-a-long-random-string"
     access_token_expire_minutes: int = 30
-    refresh_token_expire_days: int = 7
+    refresh_token_expire_days: int = 1
+    # Longer lifetimes when "Angemeldet bleiben" is checked at login
+    access_token_expire_minutes_remember: int = 60 * 12  # 12 hours
+    refresh_token_expire_days_remember: int = 30
+    password_reset_expire_minutes: int = 60
     algorithm: str = "HS256"
 
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: str = "admin"
     seed_sample_data: bool = True
 
-    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost:3080"
+    # Public frontend URL for password-reset links (falls back to first CORS origin)
+    frontend_public_url: str = ""
 
     @property
     def database_url(self) -> str:
@@ -37,6 +43,14 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def resolved_frontend_url(self) -> str:
+        explicit = (self.frontend_public_url or "").strip().rstrip("/")
+        if explicit:
+            return explicit
+        origins = self.cors_origin_list
+        return origins[0].rstrip("/") if origins else "http://localhost:3080"
 
 
 @lru_cache

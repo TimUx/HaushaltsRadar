@@ -13,14 +13,18 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> User:
-    username = get_subject(token, "access")
-    if not username:
+    subject = get_subject(token, "access")
+    if not subject:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Ungültige oder abgelaufene Anmeldung",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user = db.query(User).filter(User.username == username).first()
+    user: User | None = None
+    if subject.isdigit():
+        user = db.get(User, int(subject))
+    if user is None:
+        user = db.query(User).filter(User.username == subject).first()
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

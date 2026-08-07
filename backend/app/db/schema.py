@@ -243,6 +243,19 @@ def ensure_schema(engine: Engine) -> None:
         "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS initial_term_months INTEGER",
         "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS renewal_term_months INTEGER",
         "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS renewal_notice_period_days INTEGER",
+        """
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token_hash VARCHAR(128) NOT NULL UNIQUE,
+            expires_at TIMESTAMPTZ NOT NULL,
+            used_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_user_id ON password_reset_tokens(user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_token_hash ON password_reset_tokens(token_hash)",
     ]
     with engine.begin() as conn:
         for statement in statements:
