@@ -276,9 +276,12 @@ class ContractBase(BaseModel):
     provider: str = Field(min_length=1, max_length=200)
     contract_number: Optional[str] = None
     start_date: Optional[date] = None
+    initial_term_months: Optional[int] = Field(default=None, ge=1, le=600)
     end_date: Optional[date] = None
     notice_period_days: Optional[int] = Field(default=None, ge=0)
     auto_renewal: bool = True
+    renewal_term_months: Optional[int] = Field(default=None, ge=1, le=600)
+    renewal_notice_period_days: Optional[int] = Field(default=None, ge=0)
     notes: Optional[str] = None
 
 
@@ -290,9 +293,12 @@ class ContractUpdate(BaseModel):
     provider: Optional[str] = Field(default=None, min_length=1, max_length=200)
     contract_number: Optional[str] = None
     start_date: Optional[date] = None
+    initial_term_months: Optional[int] = Field(default=None, ge=1, le=600)
     end_date: Optional[date] = None
     notice_period_days: Optional[int] = Field(default=None, ge=0)
     auto_renewal: Optional[bool] = None
+    renewal_term_months: Optional[int] = Field(default=None, ge=1, le=600)
+    renewal_notice_period_days: Optional[int] = Field(default=None, ge=0)
     notes: Optional[str] = None
 
 
@@ -300,6 +306,11 @@ class ContractRead(ContractBase, ORMModel):
     id: int
     created_at: datetime
     updated_at: datetime
+    initial_end_date: Optional[date] = None
+    current_period_end: Optional[date] = None
+    current_notice_deadline: Optional[date] = None
+    in_renewal: bool = False
+    active_notice_period_days: Optional[int] = None
 
 
 # --- Price history ---
@@ -489,6 +500,12 @@ class SmtpSettingsRead(BaseModel):
     from_name: Optional[str] = None
     default_cc_email: Optional[str] = None
     remind_days_before: str = "30,14,7,1"
+    notify_notice_deadline: bool = True
+    notify_contract_end: bool = True
+    notify_contract_start: bool = False
+    notify_price_change: bool = False
+    notify_one_time: bool = False
+    notify_due_dates: bool = False
 
 
 class SmtpSettingsUpdate(BaseModel):
@@ -504,6 +521,12 @@ class SmtpSettingsUpdate(BaseModel):
     from_name: Optional[str] = Field(default=None, max_length=200)
     default_cc_email: Optional[str] = Field(default=None, max_length=255)
     remind_days_before: Optional[str] = Field(default=None, max_length=100)
+    notify_notice_deadline: Optional[bool] = None
+    notify_contract_end: Optional[bool] = None
+    notify_contract_start: Optional[bool] = None
+    notify_price_change: Optional[bool] = None
+    notify_one_time: Optional[bool] = None
+    notify_due_dates: Optional[bool] = None
 
 
 class SmtpTestRequest(BaseModel):

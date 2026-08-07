@@ -39,30 +39,27 @@ Frontend:
 
 - **CostItem** – Ausgabe/Einnahme, Intervall (inkl. `one_time`), Betrag, Fälligkeit
 - **CostAllocation** – Prozentanteile (Haushalt / Personen / Parteien)
-- **Contract**, PriceHistory, DocumentLink – Verträge
+- **Contract**, PriceHistory, DocumentLink – Verträge (Beginn + `initial_term_months`, optional Verlängerung via `renewal_term_months` / `renewal_notice_period_days`; Berechnung in `services/contract_terms.py`)
 - **Category** / **Subcategory**, **Tag**, **Person**, **Party**, **Object**
 - **User** – Rollen `admin` | `user` | `viewer`, optional `person_id` für „Meine Finanzen“
 
-Monats-/Jahresbeträge: `backend/app/services/amounts.py`.
+Monats-/Jahresbeträge: `backend/app/services/amounts.py`.  
+Vertragslaufzeiten / Kündigungstermine: `backend/app/services/contract_terms.py` (wird von API und Erinnerungen genutzt).
 
-## Docker (empfohlen zum Testen)
+## Docker
+
+Standard (GHCR-Images):
 
 ```bash
 cp .env.example .env
-docker compose up --build
+export HAUSHALTSRADAR_VERSION=latest
+docker compose up -d
 ```
 
-Dev-Compose (falls vorhanden):
+Lokale Entwicklung mit Hot-Reload:
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
-```
-
-Release-Images (GHCR) ohne lokalen App-Build:
-
-```bash
-export HAUSHALTSRADAR_VERSION=latest
-docker compose -f docker-compose.ghcr.yml up -d
 ```
 
 CI: Bei `release: published` baut `.github/workflows/release-ghcr.yml` Backend/Frontend multi-arch nach `ghcr.io/timux/haushaltsradar-*`. Manuell: Actions → *Release GHCR images* → *Run workflow*.

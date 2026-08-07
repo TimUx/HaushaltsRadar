@@ -80,7 +80,16 @@ Wiederkehrende Beträge werden intern auf Monatsäquivalente umgerechnet. **Einm
 
 ## Verträge
 
-Unter **Verträge** pflegst du Vertragsstammdaten und verknüpfst sie mit Posten. So bleiben Laufzeiten und zugehörige Kosten nachvollziehbar.
+Unter **Verträge** pflegst du Vertragsstammdaten und verknüpfst sie mit Posten.
+
+Bevorzugt erfasst du **Vertragsbeginn** und **Anfangslaufzeit in Monaten** – das Vertragsende wird daraus berechnet. Ohne Laufzeit kannst du weiterhin ein manuelles Vertragsende setzen.
+
+Bei **automatischer Verlängerung** kannst du abweichende Regeln nach dem ersten Ende hinterlegen, z. B.:
+
+- Anfang: Beginn + 24 Monate, Kündigungsfrist 90 Tage  
+- Danach: Verlängerung um 1 Monat mit monatlicher Kündigungsfrist (30 Tage)
+
+In der Übersicht siehst du Periodenende und den aktuellen Kündigungstermin (auch in der Verlängerungsphase).
 
 ![Verträge](../screenshots/guides/user-vertraege.png)
 

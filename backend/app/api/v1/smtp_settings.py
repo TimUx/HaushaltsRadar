@@ -29,6 +29,12 @@ def _to_read(row) -> SmtpSettingsRead:
         from_name=row.from_name,
         default_cc_email=row.default_cc_email,
         remind_days_before=row.remind_days_before or "30,14,7,1",
+        notify_notice_deadline=bool(getattr(row, "notify_notice_deadline", True)),
+        notify_contract_end=bool(getattr(row, "notify_contract_end", True)),
+        notify_contract_start=bool(getattr(row, "notify_contract_start", False)),
+        notify_price_change=bool(getattr(row, "notify_price_change", False)),
+        notify_one_time=bool(getattr(row, "notify_one_time", False)),
+        notify_due_dates=bool(getattr(row, "notify_due_dates", False)),
     )
 
 

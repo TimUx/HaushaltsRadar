@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -14,16 +16,24 @@ from app.schemas import (
     PriceHistoryCreate,
     PriceHistoryRead,
 )
+from app.services.contract_terms import contract_view, sync_end_date
 
 router = APIRouter(tags=["Verträge"])
+
+
+def _to_read(contract: Contract) -> ContractRead:
+    data = ContractRead.model_validate(contract).model_dump()
+    data.update(contract_view(contract))
+    return ContractRead(**data)
 
 
 @router.get("/contracts", response_model=list[ContractRead])
 def list_contracts(
     db: Session = Depends(get_db),
     _: User = Depends(require_editor),
-) -> list[Contract]:
-    return db.query(Contract).order_by(Contract.provider).all()
+) -> list[ContractRead]:
+    rows = db.query(Contract).order_by(Contract.provider).all()
+    return [_to_read(row) for row in rows]
 
 
 @router.post("/contracts", response_model=ContractRead, status_code=status.HTTP_201_CREATED)
@@ -31,17 +41,22 @@ def create_contract(
     payload: ContractCreate,
     db: Session = Depends(get_db),
     _: User = Depends(require_editor),
-) -> Contract:
+) -> ContractRead:
     if not db.get(CostItem, payload.cost_item_id):
         raise HTTPException(status_code=400, detail="Kostenposition nicht gefunden")
     existing = db.query(Contract).filter(Contract.cost_item_id == payload.cost_item_id).first()
     if existing:
         raise HTTPException(status_code=400, detail="Für diese Kostenposition existiert bereits ein Vertrag")
-    contract = Contract(**payload.model_dump())
+    data = payload.model_dump()
+    # Prefer term-based end; ignore manual end when term is set
+    if data.get("start_date") and data.get("initial_term_months"):
+        data["end_date"] = None
+    contract = Contract(**data)
+    sync_end_date(contract)
     db.add(contract)
     db.commit()
     db.refresh(contract)
-    return contract
+    return _to_read(contract)
 
 
 @router.get("/contracts/{contract_id}", response_model=ContractRead)
@@ -49,11 +64,11 @@ def get_contract(
     contract_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(require_editor),
-) -> Contract:
+) -> ContractRead:
     contract = db.get(Contract, contract_id)
     if not contract:
         raise HTTPException(status_code=404, detail="Vertrag nicht gefunden")
-    return contract
+    return _to_read(contract)
 
 
 @router.patch("/contracts/{contract_id}", response_model=ContractRead)
@@ -62,15 +77,18 @@ def update_contract(
     payload: ContractUpdate,
     db: Session = Depends(get_db),
     _: User = Depends(require_editor),
-) -> Contract:
+) -> ContractRead:
     contract = db.get(Contract, contract_id)
     if not contract:
         raise HTTPException(status_code=404, detail="Vertrag nicht gefunden")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    for key, value in data.items():
         setattr(contract, key, value)
+    if contract.start_date and contract.initial_term_months:
+        sync_end_date(contract)
     db.commit()
     db.refresh(contract)
-    return contract
+    return _to_read(contract)
 
 
 @router.delete("/contracts/{contract_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -109,9 +127,9 @@ def create_price_history(
         raise HTTPException(status_code=400, detail="Kostenposition nicht gefunden")
     data = payload.model_dump()
     if not data.get("monthly_amount"):
-        # Approximate monthly from current interval using provided amount.
-        from app.services.amounts import INTERVAL_TO_MONTHS
         from decimal import Decimal
+
+        from app.services.amounts import INTERVAL_TO_MONTHS
 
         months = INTERVAL_TO_MONTHS.get(item.payment_interval, Decimal("1"))
         if item.payment_interval.value == "custom":

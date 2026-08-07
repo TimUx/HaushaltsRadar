@@ -1,4 +1,16 @@
-# Compose project name (independent of directory name after KostenPilot → HaushaltsRadar rename)
+# Standard deployment with prebuilt GHCR images.
+# Usage:
+#   cp .env.example .env
+#   export HAUSHALTSRADAR_VERSION=1.1.2   # or latest
+#   docker compose up -d
+#
+# Optional local images:
+#   export HAUSHALTSRADAR_BACKEND_IMAGE=haushaltsradar-backend
+#   export HAUSHALTSRADAR_FRONTEND_IMAGE=haushaltsradar-frontend
+#   export HAUSHALTSRADAR_VERSION=local
+#
+# Local development with live reload: docker compose -f docker-compose.dev.yml up --build
+
 name: haushaltsradar
 
 services:
@@ -6,12 +18,11 @@ services:
     image: postgres:16-alpine
     container_name: haushaltsradar-postgresql
     environment:
-      # Defaults match existing installs; override via .env (local may still use kostenpilot_*)
       POSTGRES_USER: ${POSTGRES_USER:-haushaltsradar}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-haushaltsradar}
       POSTGRES_DB: ${POSTGRES_DB:-haushaltsradar}
     volumes:
-      - kostenpilot_pgdata:/var/lib/postgresql/data
+      - haushaltsradar_pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
@@ -21,7 +32,7 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    image: ${HAUSHALTSRADAR_BACKEND_IMAGE:-ghcr.io/timux/haushaltsradar-backend}:${HAUSHALTSRADAR_VERSION:-latest}
     container_name: haushaltsradar-backend
     env_file:
       - .env
@@ -36,7 +47,7 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    image: ${HAUSHALTSRADAR_FRONTEND_IMAGE:-ghcr.io/timux/haushaltsradar-frontend}:${HAUSHALTSRADAR_VERSION:-latest}
     container_name: haushaltsradar-frontend
     ports:
       - "3080:80"
@@ -44,6 +55,5 @@ services:
       - backend
 
 volumes:
-  # Legacy logical key + fixed Docker volume name from KostenPilot (preserves existing data)
-  kostenpilot_pgdata:
-    name: kostenpilot_kostenpilot_pgdata
+  haushaltsradar_pgdata:
+    name: haushaltsradar_pgdata

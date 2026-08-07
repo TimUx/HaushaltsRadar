@@ -190,10 +190,18 @@ export interface Contract {
   provider: string
   contract_number?: string | null
   start_date?: string | null
+  initial_term_months?: number | null
   end_date?: string | null
   notice_period_days?: number | null
   auto_renewal: boolean
+  renewal_term_months?: number | null
+  renewal_notice_period_days?: number | null
   notes?: string | null
+  initial_end_date?: string | null
+  current_period_end?: string | null
+  current_notice_deadline?: string | null
+  in_renewal?: boolean
+  active_notice_period_days?: number | null
 }
 
 export interface CostOverviewRow {
@@ -274,6 +282,12 @@ export interface SmtpSettings {
   from_name?: string | null
   default_cc_email?: string | null
   remind_days_before: string
+  notify_notice_deadline: boolean
+  notify_contract_end: boolean
+  notify_contract_start: boolean
+  notify_price_change: boolean
+  notify_one_time: boolean
+  notify_due_dates: boolean
 }
 
 export interface ReminderRunResult {
