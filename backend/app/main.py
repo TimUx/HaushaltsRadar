@@ -58,7 +58,7 @@ def create_app(*, run_bootstrap: bool = True) -> FastAPI:
 
     app = FastAPI(
         title=settings.app_name,
-        version="1.1.3",
+        version="1.1.4",
         description="Open-Source Fixkostenverwaltung für Privathaushalte",
         lifespan=lifespan,
     )

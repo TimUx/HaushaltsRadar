@@ -209,7 +209,7 @@ export function HistoryPage() {
   }
 
   if ((error || !data) && !isFetching) {
-    return <Alert severity="error">Kostenhistorie konnte nicht geladen werden.</Alert>
+    return <Alert severity="error">Historie konnte nicht geladen werden.</Alert>
   }
 
   if (!data || !chartOption) {
@@ -395,7 +395,7 @@ export function HistoryPage() {
             Änderungen
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Neue, angepasste und entfernte Kostenpositionen im gewählten Zeitraum.
+            Neue, angepasste und entfernte Posten im gewählten Zeitraum.
           </Typography>
           <Table size="small">
             <TableHead>

@@ -68,7 +68,7 @@ export function CostsOverviewPage() {
 
   const columns = useMemo<GridColDef<CostOverviewRow>[]>(
     () => [
-      { field: 'name', headerName: 'Kostenposition', flex: 1.2, minWidth: 160 },
+      { field: 'name', headerName: 'Posten', flex: 1.2, minWidth: 160 },
       { field: 'entry_type_label', headerName: 'Art', width: 110 },
       { field: 'category', headerName: 'Kategorie', flex: 0.8, minWidth: 120 },
       { field: 'tags', headerName: 'Tags', flex: 1, minWidth: 140 },
@@ -121,8 +121,8 @@ export function CostsOverviewPage() {
       },
       { field: 'contract_start', headerName: 'Vertrag Start', width: 120 },
       { field: 'contract_end', headerName: 'Vertrag Ende', width: 120 },
-      { field: 'start_date', headerName: 'Kosten Start', width: 120 },
-      { field: 'end_date', headerName: 'Kosten Ende', width: 120 },
+      { field: 'start_date', headerName: 'Posten Start', width: 120 },
+      { field: 'end_date', headerName: 'Posten Ende', width: 120 },
       { field: 'description', headerName: 'Beschreibung', flex: 1, minWidth: 140 },
       { field: 'notes', headerName: 'Notizen', flex: 1, minWidth: 140 },
       { field: 'currency', headerName: 'Währung', width: 90 },

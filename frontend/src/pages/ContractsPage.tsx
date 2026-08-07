@@ -267,7 +267,7 @@ export function ContractsPage() {
           <TableHead>
             <TableRow>
               <TableCell>Anbieter</TableCell>
-              <TableCell>Kostenposition</TableCell>
+              <TableCell>Posten</TableCell>
               <TableCell>Laufzeit</TableCell>
               <TableCell>Periodenende</TableCell>
               <TableCell>Kündigungsfrist</TableCell>
@@ -319,9 +319,9 @@ export function ContractsPage() {
                 onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}
               />
               <FormControl fullWidth required disabled={editingId != null}>
-                <InputLabel>Kostenposition</InputLabel>
+                <InputLabel>Posten</InputLabel>
                 <Select
-                  label="Kostenposition"
+                  label="Posten"
                   value={form.costItemId}
                   onChange={(e) => applyCostItemAllocations(Number(e.target.value))}
                 >
@@ -423,7 +423,7 @@ export function ContractsPage() {
                 onChange={(allocations) => setForm((f) => ({ ...f, allocations }))}
               />
               <Typography variant="caption" color="text.secondary">
-                Die Verteilung wird an der verknüpften Kostenposition gespeichert.
+                Die Verteilung wird am verknüpften Posten gespeichert.
               </Typography>
             </Stack>
           </DialogContent>

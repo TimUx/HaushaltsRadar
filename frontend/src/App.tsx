@@ -61,6 +61,8 @@ function ThemedApp() {
               <Route path="login" element={<LoginPage />} />
               <Route path="passwort-vergessen" element={<ForgotPasswordPage />} />
               <Route path="passwort-zuruecksetzen" element={<ResetPasswordPage />} />
+              {/* Legacy bookmark: Menü „Kosten“ → „Posten“ */}
+              <Route path="kosten" element={<Navigate to="/posten" replace />} />
               <Route element={<ProtectedRoute roles={['admin', 'user', 'viewer']} />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="analysen" element={<AnalysesPage />} />
@@ -71,7 +73,7 @@ function ThemedApp() {
                 <Route path="konto" element={<ProfilePage />} />
               </Route>
               <Route element={<ProtectedRoute roles={['admin', 'user']} />}>
-                <Route path="kosten" element={<CostItemsPage />} />
+                <Route path="posten" element={<CostItemsPage />} />
                 <Route path="vertraege" element={<ContractsPage />} />
                 <Route path="personen" element={<PersonsPage />} />
                 <Route path="parteien" element={<PartiesPage />} />
