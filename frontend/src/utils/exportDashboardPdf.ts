@@ -1,8 +1,11 @@
+import { createTheme } from '@mui/material/styles'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { DashboardSummary } from '../api/types'
 import { INTERVAL_LABELS } from '../api/types'
+import { buildBarOption, buildPieOption } from '../charts'
 import { formatCurrency } from './format'
+import { renderChartPng } from './renderChartPng'
 
 export type DashboardPdfFilters = {
   year?: number | null
@@ -16,6 +19,16 @@ export type DashboardPdfFilters = {
 type JsPdfWithAutoTable = jsPDF & {
   lastAutoTable?: { finalY: number }
 }
+
+/** Light theme so charts stay readable when printed / viewed in PDF. */
+const printTheme = createTheme({
+  palette: {
+    mode: 'light',
+    text: { primary: '#1e2d3c', secondary: '#666666' },
+    divider: '#dde3ea',
+    background: { paper: '#ffffff', default: '#ffffff' },
+  },
+})
 
 function money(value: string | number): string {
   return formatCurrency(value)
@@ -59,10 +72,81 @@ function emptyNote(doc: JsPdfWithAutoTable, text: string, y: number): number {
   return y + 6
 }
 
-export function exportDashboardPdf(
+function chartSubtitle(doc: JsPdfWithAutoTable, title: string, x: number, y: number): void {
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(30, 45, 60)
+  doc.text(title, x, y)
+}
+
+type ChartImage = { url: string; widthPx: number; heightPx: number }
+
+async function buildDashboardChartImages(data: DashboardSummary, includeParty: boolean) {
+  const [category, topBlocks, party] = await Promise.all([
+    data.costs_by_category.length > 0
+      ? (async (): Promise<ChartImage> => {
+          const widthPx = 560
+          const heightPx = 360
+          const url = await renderChartPng(buildPieOption(printTheme, data.costs_by_category), {
+            width: widthPx,
+            height: heightPx,
+          })
+          return { url, widthPx, heightPx }
+        })()
+      : Promise.resolve(null),
+    data.top_cost_blocks.length > 0
+      ? (async (): Promise<ChartImage> => {
+          const widthPx = 560
+          const heightPx = Math.max(300, data.top_cost_blocks.length * 36 + 48)
+          const url = await renderChartPng(
+            buildBarOption(printTheme, data.top_cost_blocks, { horizontal: true }),
+            { width: widthPx, height: heightPx },
+          )
+          return { url, widthPx, heightPx }
+        })()
+      : Promise.resolve(null),
+    includeParty && data.costs_by_party.length > 0
+      ? (async (): Promise<ChartImage> => {
+          const widthPx = 900
+          const heightPx = 320
+          const url = await renderChartPng(
+            buildBarOption(printTheme, data.costs_by_party, { horizontal: false }),
+            { width: widthPx, height: heightPx },
+          )
+          return { url, widthPx, heightPx }
+        })()
+      : Promise.resolve(null),
+  ])
+
+  return { category, topBlocks, party }
+}
+
+function addChartImage(
+  doc: JsPdfWithAutoTable,
+  image: { url: string; widthPx: number; heightPx: number },
+  x: number,
+  y: number,
+  maxWidthMm: number,
+  maxHeightMm: number,
+): number {
+  const aspect = image.heightPx / image.widthPx
+  let w = maxWidthMm
+  let h = w * aspect
+  if (h > maxHeightMm) {
+    h = maxHeightMm
+    w = h / aspect
+  }
+  doc.addImage(image.url, 'PNG', x, y, w, h)
+  return h
+}
+
+export async function exportDashboardPdf(
   data: DashboardSummary,
   filters: DashboardPdfFilters = {},
-): void {
+): Promise<void> {
+  const includeParty = filters.includePartyComparison !== false
+  const charts = await buildDashboardChartImages(data, includeParty)
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }) as JsPdfWithAutoTable
   const pageWidth = doc.internal.pageSize.getWidth()
   let y = 16
@@ -169,8 +253,59 @@ export function exportDashboardPdf(
   })
   y = (doc.lastAutoTable?.finalY ?? y) + 8
 
+  const hasAnyChart = charts.category || charts.topBlocks || charts.party
+  if (hasAnyChart) {
+    y = sectionTitle(doc, 'Diagramme', y)
+    y += 3
+
+    const gap = 6
+    const colWidth = (pageWidth - 28 - gap) / 2
+    const leftX = 14
+    const rightX = leftX + colWidth + gap
+    const chartMaxH = 72
+
+    if (charts.category || charts.topBlocks) {
+      const pairHeight = chartMaxH + 8
+      y = ensureSpace(doc, y, pairHeight)
+      const chartTop = y + 4
+
+      if (charts.category) {
+        chartSubtitle(doc, 'Kosten nach Kategorie', leftX, y)
+        addChartImage(doc, charts.category, leftX, chartTop, colWidth, chartMaxH)
+      } else {
+        chartSubtitle(doc, 'Kosten nach Kategorie', leftX, y)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(110, 110, 110)
+        doc.text('Keine Daten für diesen Filter.', leftX, chartTop + 4)
+      }
+
+      if (charts.topBlocks) {
+        chartSubtitle(doc, 'Größte Kostenblöcke', rightX, y)
+        addChartImage(doc, charts.topBlocks, rightX, chartTop, colWidth, chartMaxH)
+      } else {
+        chartSubtitle(doc, 'Größte Kostenblöcke', rightX, y)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(110, 110, 110)
+        doc.text('Keine Einträge', rightX, chartTop + 4)
+      }
+
+      y = chartTop + chartMaxH + 8
+    }
+
+    if (charts.party) {
+      const partyMaxH = 68
+      y = ensureSpace(doc, y, partyMaxH + 10)
+      chartSubtitle(doc, 'Vergleich Parteien', 14, y)
+      y += 4
+      const h = addChartImage(doc, charts.party, 14, y, pageWidth - 28, partyMaxH)
+      y += h + 8
+    }
+  }
+
   const partyTotal = data.costs_by_party.reduce((sum, row) => sum + Number(row.amount), 0)
-  if (filters.includePartyComparison !== false && data.costs_by_party.length > 0) {
+  if (includeParty && data.costs_by_party.length > 0) {
     y = sectionTitle(doc, 'Vergleich Parteien (monatlich)', y)
     autoTable(doc, {
       startY: y,

@@ -40,7 +40,7 @@ git clone https://github.com/TimUx/HaushaltsRadar.git
 cd HaushaltsRadar
 cp .env.example .env
 # SECRET_KEY und Bootstrap-Passwort in .env anpassen
-export HAUSHALTSRADAR_VERSION=1.1.4   # oder latest
+export HAUSHALTSRADAR_VERSION=1.1.5   # oder latest
 docker compose up -d
 ```
 

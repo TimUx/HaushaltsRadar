@@ -215,12 +215,20 @@ export function DashboardPage() {
     return { objectName, shareLabel, categoryName, tagName }
   }, [filters, filterOptions])
 
-  function handleExportPdf() {
-    exportDashboardPdf(data!, {
-      ...pdfFilterLabels,
-      year: filters.year,
-      includePartyComparison: filters.partyId == null && (filterOptions?.parties?.length || 0) > 0,
-    })
+  const [exportingPdf, setExportingPdf] = useState(false)
+
+  async function handleExportPdf() {
+    if (!data || exportingPdf) return
+    setExportingPdf(true)
+    try {
+      await exportDashboardPdf(data, {
+        ...pdfFilterLabels,
+        year: filters.year,
+        includePartyComparison: filters.partyId == null && (filterOptions?.parties?.length || 0) > 0,
+      })
+    } finally {
+      setExportingPdf(false)
+    }
   }
 
   if (isLoading && !data) {
@@ -388,10 +396,11 @@ export function DashboardPage() {
         <Button
           size="small"
           variant="outlined"
-          startIcon={<PictureAsPdfIcon />}
-          onClick={handleExportPdf}
+          startIcon={exportingPdf ? <CircularProgress size={14} /> : <PictureAsPdfIcon />}
+          onClick={() => void handleExportPdf()}
+          disabled={exportingPdf}
         >
-          PDF
+          {exportingPdf ? 'PDF…' : 'PDF'}
         </Button>
         {hasFilter && filterHint && (
           <Typography variant="caption" color="text.secondary">
