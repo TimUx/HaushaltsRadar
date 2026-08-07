@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  Divider,
   FormControlLabel,
   Stack,
   Switch,
@@ -25,7 +26,46 @@ const emptyForm: SmtpSettings = {
   from_name: 'HaushaltsRadar',
   default_cc_email: '',
   remind_days_before: '30,14,7,1',
+  notify_notice_deadline: true,
+  notify_contract_end: true,
+  notify_contract_start: false,
+  notify_price_change: false,
+  notify_one_time: false,
+  notify_due_dates: false,
 }
+
+const TOPIC_TOGGLES: { key: keyof SmtpSettings; label: string; hint: string }[] = [
+  {
+    key: 'notify_notice_deadline',
+    label: 'Kündigungsfrist',
+    hint: 'Erinnerung vor dem letzten Kündigungstermin (Ende − Frist)',
+  },
+  {
+    key: 'notify_contract_end',
+    label: 'Vertragsende',
+    hint: 'Erinnerung vor dem Vertragsende',
+  },
+  {
+    key: 'notify_contract_start',
+    label: 'Vertragsbeginn',
+    hint: 'Erinnerung vor dem Vertragsstart',
+  },
+  {
+    key: 'notify_price_change',
+    label: 'Preisänderung',
+    hint: 'Wenn eine Preisänderung (Historie) wirksam wird',
+  },
+  {
+    key: 'notify_one_time',
+    label: 'Einmalzahlung',
+    hint: 'Einmalige Ausgaben/Einnahmen anhand Startdatum',
+  },
+  {
+    key: 'notify_due_dates',
+    label: 'Fälligkeiten',
+    hint: 'Wiederkehrende Fälligkeitstage (z. B. jeden 15.)',
+  },
+]
 
 export function AdminSmtpPage() {
   const queryClient = useQueryClient()
@@ -41,6 +81,7 @@ export function AdminSmtpPage() {
   useEffect(() => {
     if (data) {
       setForm({
+        ...emptyForm,
         ...data,
         host: data.host || '',
         username: data.username || '',
@@ -66,6 +107,12 @@ export function AdminSmtpPage() {
         from_name: form.from_name || null,
         default_cc_email: form.default_cc_email || null,
         remind_days_before: form.remind_days_before || '30,14,7,1',
+        notify_notice_deadline: form.notify_notice_deadline,
+        notify_contract_end: form.notify_contract_end,
+        notify_contract_start: form.notify_contract_start,
+        notify_price_change: form.notify_price_change,
+        notify_one_time: form.notify_one_time,
+        notify_due_dates: form.notify_due_dates,
         ...(password ? { password } : {}),
       }),
     onSuccess: async () => {
@@ -89,8 +136,7 @@ export function AdminSmtpPage() {
         setMessage(res.reason || 'Erinnerungen übersprungen.')
         return
       }
-      const errPart =
-        res.errors?.length ? ` Fehler: ${res.errors.join(' | ')}` : ''
+      const errPart = res.errors?.length ? ` Fehler: ${res.errors.join(' | ')}` : ''
       setMessage(
         `Erinnerungen: ${res.sent} gesendet, ${res.skipped} übersprungen ` +
           `(${res.candidates} Kandidaten).${errPart}`,
@@ -106,10 +152,9 @@ export function AdminSmtpPage() {
   return (
     <Stack spacing={2} sx={{ maxWidth: 720 }}>
       <Typography variant="body2" color="text.secondary">
-        Bei aktiviertem SMTP prüft HaushaltsRadar täglich um 07:00 (Europe/Berlin) Verträge auf
-        bevorstehende Kündigungsfristen und Vertragsenden. Empfänger sind verknüpfte Benutzer-
-        bzw. Personen-E-Mails; die Default-Adresse erhält alles in CC. Ohne Zuordnung geht die
-        Nachricht an die Default-Adresse.
+        SMTP aktivieren und gewünschte Themen einzeln einschalten. Prüfung täglich 07:00
+        (Europe/Berlin). Empfänger über Benutzer-/Personen-E-Mail; Default-Adresse in CC bzw. als
+        Fallback.
       </Typography>
 
       {error && <Alert severity="error">Einstellungen konnten nicht geladen werden.</Alert>}
@@ -133,7 +178,7 @@ export function AdminSmtpPage() {
             onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))}
           />
         }
-        label="SMTP / Erinnerungen aktiv"
+        label="SMTP aktiv"
       />
 
       <TextField
@@ -209,17 +254,48 @@ export function AdminSmtpPage() {
       <TextField
         label="Default-E-Mail (CC / Fallback)"
         fullWidth
-        helperText="Erhält alle Erinnerungen in CC. Ohne Personen-/Parteien-Zuordnung auch als Empfänger."
+        helperText="Erhält aktivierte Erinnerungen in CC. Ohne Zuordnung auch als Empfänger."
         value={form.default_cc_email || ''}
         onChange={(e) => setForm((f) => ({ ...f, default_cc_email: e.target.value }))}
       />
       <TextField
         label="Erinnerungstage vor Stichtag"
         fullWidth
-        helperText="Kommagetrennt, z. B. 30,14,7,1 – gilt für Kündigungsfrist und Vertragsende."
+        helperText="Kommagetrennt, z. B. 30,14,7,1 – gilt für alle aktivierten Themen."
         value={form.remind_days_before}
         onChange={(e) => setForm((f) => ({ ...f, remind_days_before: e.target.value }))}
       />
+
+      <Divider />
+      <Typography variant="subtitle2">Benachrichtigungen</Typography>
+      <Typography variant="caption" color="text.secondary">
+        Nur aktivierte Themen erzeugen Mails. Standard: Kündigungsfrist und Vertragsende an,
+        übrige aus.
+      </Typography>
+      <Stack spacing={0.5}>
+        {TOPIC_TOGGLES.map((topic) => (
+          <FormControlLabel
+            key={topic.key}
+            control={
+              <Switch
+                checked={Boolean(form[topic.key])}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, [topic.key]: e.target.checked }))
+                }
+                disabled={!form.enabled}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2">{topic.label}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {topic.hint}
+                </Typography>
+              </Box>
+            }
+          />
+        ))}
+      </Stack>
 
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         <Button

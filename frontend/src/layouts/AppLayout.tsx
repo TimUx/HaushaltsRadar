@@ -2,9 +2,11 @@ import { useMemo, useState, type ReactNode } from 'react'
 import {
   AppBar,
   Box,
+  Button,
   Divider,
   Drawer,
   IconButton,
+  Link,
   List,
   ListItemButton,
   ListItemIcon,
@@ -12,7 +14,6 @@ import {
   ListSubheader,
   Toolbar,
   Typography,
-  Button,
   useMediaQuery,
 } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
@@ -41,6 +42,7 @@ import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-rout
 import { useAuth } from '../auth/AuthContext'
 import { MyFinancesButton } from '../components/MyFinancesButton'
 import { HaushaltsRadarLogo } from '../assets/HaushaltsRadarLogo'
+import { APP_COPYRIGHT, APP_GITHUB_URL, APP_NAME, APP_VERSION } from '../appMeta'
 
 const DRAWER_WIDTH = 240
 
@@ -204,7 +206,7 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
         ))}
       </Box>
       <Divider />
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 2, pt: 1.5 }}>
         {isAuthenticated ? (
           <Button
             fullWidth
@@ -225,6 +227,25 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
             Anmelden
           </Button>
         )}
+        <Box sx={{ mt: 1.5, px: 0.25, lineHeight: 1.35 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            {APP_NAME} {APP_VERSION}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            {APP_COPYRIGHT}
+            {' · '}
+            <Link
+              href={APP_GITHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              underline="hover"
+              color="inherit"
+              variant="caption"
+            >
+              GitHub
+            </Link>
+          </Typography>
+        </Box>
       </Box>
     </Box>
   )

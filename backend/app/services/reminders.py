@@ -1,35 +1,54 @@
-"""Contract reminder discovery and delivery."""
+"""Notification discovery and delivery for contracts, prices, dues, one-time items."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from dataclasses import dataclass, field
+from datetime import date, datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
     Contract,
     CostAllocation,
+    CostHistoryEvent,
     CostItem,
+    PaymentInterval,
     Person,
+    PriceHistory,
     ReminderLog,
     SmtpSettings,
     User,
 )
+from app.services.contract_terms import (
+    active_notice_period_days,
+    current_period_end,
+    in_renewal_phase,
+    notice_deadline,
+)
+from app.services.due_dates import format_due_label, next_due_sort_key
 from app.services.mail import send_email, settings_ready
 
 REMINDER_NOTICE = "notice_deadline"
 REMINDER_END = "contract_end"
+REMINDER_START = "contract_start"
+REMINDER_PRICE = "price_change"
+REMINDER_ONE_TIME = "one_time"
+REMINDER_DUE = "due_date"
 
 
 @dataclass
 class ReminderCandidate:
-    contract: Contract
-    cost_item: CostItem
     reminder_type: str
+    subject_key: str
+    cost_item: CostItem
     target_date: date
     lead_days: int
     days_until: int
+    contract: Contract | None = None
+    price_history: PriceHistory | None = None
+    previous_amount: Decimal | None = None
+    details: dict[str, str] = field(default_factory=dict)
 
 
 def get_or_create_smtp_settings(db: Session) -> SmtpSettings:
@@ -60,15 +79,6 @@ def parse_lead_days(raw: str | None) -> list[int]:
     return sorted(days, reverse=True) or [30, 14, 7, 1]
 
 
-def notice_deadline(contract: Contract) -> date | None:
-    if not contract.end_date:
-        return None
-    days = contract.notice_period_days
-    if days is None or days < 0:
-        return None
-    return contract.end_date - timedelta(days=days)
-
-
 def email_for_person(db: Session, person: Person) -> str | None:
     user = (
         db.query(User)
@@ -88,13 +98,9 @@ def email_for_person(db: Session, person: Person) -> str | None:
 
 
 def resolve_recipients(db: Session, cost_item: CostItem) -> tuple[list[str], bool]:
-    """
-    Returns (to_emails, has_assignment).
-    has_assignment=False means only household / no person/party → use default as To.
-    """
+    """Returns (to_emails, has_person_or_party_assignment)."""
     allocations = (
         db.query(CostAllocation)
-        .options(joinedload(CostAllocation.person), joinedload(CostAllocation.party))
         .filter(CostAllocation.cost_item_id == cost_item.id)
         .all()
     )
@@ -125,57 +131,199 @@ def resolve_recipients(db: Session, cost_item: CostItem) -> tuple[list[str], boo
     return sorted(emails), has_person_or_party
 
 
+def _match_lead(target: date, today: date, lead_days: list[int]) -> int | None:
+    days_until = (target - today).days
+    if days_until in lead_days:
+        return days_until
+    return None
+
+
+def next_due_date(item: CostItem, today: date) -> date | None:
+    if item.due_day is None and item.due_month is None:
+        return None
+    year, month, day = next_due_sort_key(item, today)
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return date(year, month, min(day, 28))
+
+
 def collect_candidates(db: Session, today: date | None = None) -> list[ReminderCandidate]:
     today = today or date.today()
     settings = get_or_create_smtp_settings(db)
     lead_days = parse_lead_days(settings.remind_days_before)
-
-    contracts = (
-        db.query(Contract)
-        .options(joinedload(Contract.cost_item))
-        .all()
-    )
     candidates: list[ReminderCandidate] = []
-    for contract in contracts:
-        item = contract.cost_item
-        if item is None or not item.is_active:
-            continue
 
-        deadline = notice_deadline(contract)
-        if deadline:
-            days_until = (deadline - today).days
-            if days_until in lead_days:
-                candidates.append(
-                    ReminderCandidate(
-                        contract=contract,
-                        cost_item=item,
-                        reminder_type=REMINDER_NOTICE,
-                        target_date=deadline,
-                        lead_days=days_until,
-                        days_until=days_until,
-                    )
-                )
+    if (
+        settings.notify_notice_deadline
+        or settings.notify_contract_end
+        or settings.notify_contract_start
+    ):
+        contracts = (
+            db.query(Contract).options(joinedload(Contract.cost_item)).all()
+        )
+        for contract in contracts:
+            item = contract.cost_item
+            if item is None or not item.is_active:
+                continue
 
-        if contract.end_date:
-            days_until = (contract.end_date - today).days
-            if days_until in lead_days:
-                candidates.append(
-                    ReminderCandidate(
-                        contract=contract,
-                        cost_item=item,
-                        reminder_type=REMINDER_END,
-                        target_date=contract.end_date,
-                        lead_days=days_until,
-                        days_until=days_until,
+            if settings.notify_notice_deadline:
+                deadline = notice_deadline(contract, today)
+                if deadline:
+                    matched = _match_lead(deadline, today, lead_days)
+                    if matched is not None:
+                        candidates.append(
+                            ReminderCandidate(
+                                reminder_type=REMINDER_NOTICE,
+                                subject_key=f"contract:{contract.id}",
+                                cost_item=item,
+                                contract=contract,
+                                target_date=deadline,
+                                lead_days=matched,
+                                days_until=matched,
+                            )
+                        )
+
+            if settings.notify_contract_end:
+                period_end = current_period_end(contract, today)
+                if period_end:
+                    matched = _match_lead(period_end, today, lead_days)
+                    if matched is not None:
+                        candidates.append(
+                            ReminderCandidate(
+                                reminder_type=REMINDER_END,
+                                subject_key=f"contract:{contract.id}",
+                                cost_item=item,
+                                contract=contract,
+                                target_date=period_end,
+                                lead_days=matched,
+                                days_until=matched,
+                            )
+                        )
+
+            if settings.notify_contract_start and contract.start_date:
+                matched = _match_lead(contract.start_date, today, lead_days)
+                if matched is not None:
+                    candidates.append(
+                        ReminderCandidate(
+                            reminder_type=REMINDER_START,
+                            subject_key=f"contract:{contract.id}",
+                            cost_item=item,
+                            contract=contract,
+                            target_date=contract.start_date,
+                            lead_days=matched,
+                            days_until=matched,
+                        )
                     )
+
+    if settings.notify_price_change:
+        histories = (
+            db.query(PriceHistory)
+            .options(joinedload(PriceHistory.cost_item))
+            .filter(PriceHistory.event_type == CostHistoryEvent.changed)
+            .order_by(PriceHistory.cost_item_id, PriceHistory.valid_from, PriceHistory.id)
+            .all()
+        )
+        all_hist = (
+            db.query(PriceHistory)
+            .order_by(PriceHistory.cost_item_id, PriceHistory.valid_from, PriceHistory.id)
+            .all()
+        )
+        chronological_prev: dict[int, Decimal | None] = {}
+        prev_amount_at: dict[int, Decimal] = {}
+        for h in all_hist:
+            chronological_prev[h.id] = prev_amount_at.get(h.cost_item_id)
+            prev_amount_at[h.cost_item_id] = Decimal(h.amount)
+
+        for hist in histories:
+            item = hist.cost_item
+            if item is None or not item.is_active:
+                continue
+            matched = _match_lead(hist.valid_from, today, lead_days)
+            if matched is None:
+                continue
+            prev_amt = chronological_prev.get(hist.id)
+            candidates.append(
+                ReminderCandidate(
+                    reminder_type=REMINDER_PRICE,
+                    subject_key=f"price:{hist.id}",
+                    cost_item=item,
+                    price_history=hist,
+                    previous_amount=prev_amt,
+                    target_date=hist.valid_from,
+                    lead_days=matched,
+                    days_until=matched,
                 )
+            )
+
+    if settings.notify_one_time:
+        items = (
+            db.query(CostItem)
+            .filter(
+                CostItem.is_active.is_(True),
+                CostItem.payment_interval == PaymentInterval.one_time,
+                CostItem.start_date.isnot(None),
+            )
+            .all()
+        )
+        for item in items:
+            assert item.start_date is not None
+            matched = _match_lead(item.start_date, today, lead_days)
+            if matched is None:
+                continue
+            candidates.append(
+                ReminderCandidate(
+                    reminder_type=REMINDER_ONE_TIME,
+                    subject_key=f"cost_item:{item.id}",
+                    cost_item=item,
+                    target_date=item.start_date,
+                    lead_days=matched,
+                    days_until=matched,
+                    details={
+                        "entry_type": item.entry_type.value,
+                        "amount": str(item.amount),
+                    },
+                )
+            )
+
+    if settings.notify_due_dates:
+        items = (
+            db.query(CostItem)
+            .filter(
+                CostItem.is_active.is_(True),
+                CostItem.payment_interval != PaymentInterval.one_time,
+            )
+            .all()
+        )
+        for item in items:
+            due = next_due_date(item, today)
+            if due is None:
+                continue
+            matched = _match_lead(due, today, lead_days)
+            if matched is None:
+                continue
+            candidates.append(
+                ReminderCandidate(
+                    reminder_type=REMINDER_DUE,
+                    subject_key=f"cost_item:{item.id}:{due.isoformat()}",
+                    cost_item=item,
+                    target_date=due,
+                    lead_days=matched,
+                    days_until=matched,
+                    details={
+                        "due_label": format_due_label(item.due_day, item.due_month),
+                        "amount": str(item.amount),
+                    },
+                )
+            )
+
     return candidates
 
 
 def _already_sent(
     db: Session,
     *,
-    contract_id: int,
+    subject_key: str,
     reminder_type: str,
     target_date: date,
     lead_days: int,
@@ -183,7 +331,7 @@ def _already_sent(
     return (
         db.query(ReminderLog)
         .filter(
-            ReminderLog.contract_id == contract_id,
+            ReminderLog.subject_key == subject_key,
             ReminderLog.reminder_type == reminder_type,
             ReminderLog.target_date == target_date,
             ReminderLog.lead_days == lead_days,
@@ -194,37 +342,93 @@ def _already_sent(
 
 
 def _format_body(candidate: ReminderCandidate) -> tuple[str, str]:
-    contract = candidate.contract
     item = candidate.cost_item
+    contract = candidate.contract
+
     if candidate.reminder_type == REMINDER_NOTICE:
         kind = "Kündigungsfrist"
-        subject = (
-            f"HaushaltsRadar: Kündigungsfrist in {candidate.days_until} Tag(en) – {item.name}"
-        )
-    else:
+        subject = f"HaushaltsRadar: Kündigungsfrist in {candidate.days_until} Tag(en) – {item.name}"
+    elif candidate.reminder_type == REMINDER_END:
         kind = "Vertragsende"
         subject = f"HaushaltsRadar: Vertragsende in {candidate.days_until} Tag(en) – {item.name}"
+    elif candidate.reminder_type == REMINDER_START:
+        kind = "Vertragsbeginn"
+        subject = f"HaushaltsRadar: Vertragsbeginn in {candidate.days_until} Tag(en) – {item.name}"
+    elif candidate.reminder_type == REMINDER_PRICE:
+        kind = "Preisänderung"
+        subject = f"HaushaltsRadar: Preisänderung in {candidate.days_until} Tag(en) – {item.name}"
+    elif candidate.reminder_type == REMINDER_ONE_TIME:
+        kind = "Einmalzahlung"
+        et = "Einnahme" if candidate.details.get("entry_type") == "income" else "Ausgabe"
+        subject = (
+            f"HaushaltsRadar: Einmalige {et} in {candidate.days_until} Tag(en) – {item.name}"
+        )
+    else:
+        kind = "Fälligkeit"
+        subject = f"HaushaltsRadar: Fälligkeit in {candidate.days_until} Tag(en) – {item.name}"
 
-    lines = [
-        f"Erinnerung: {kind}",
-        "",
-        f"Posten: {item.name}",
-        f"Anbieter: {contract.provider}",
-    ]
-    if contract.contract_number:
-        lines.append(f"Vertragsnummer: {contract.contract_number}")
-    if contract.start_date:
-        lines.append(f"Vertragsbeginn: {contract.start_date.isoformat()}")
-    if contract.end_date:
-        lines.append(f"Vertragsende: {contract.end_date.isoformat()}")
-    if contract.notice_period_days is not None:
-        lines.append(f"Kündigungsfrist: {contract.notice_period_days} Tage")
-        deadline = notice_deadline(contract)
-        if deadline:
-            lines.append(f"Letzter Kündigungstermin: {deadline.isoformat()}")
-    lines.append(f"Automatische Verlängerung: {'ja' if contract.auto_renewal else 'nein'}")
-    if contract.notes:
-        lines.extend(["", f"Notizen: {contract.notes}"])
+    lines = [f"Erinnerung: {kind}", "", f"Posten: {item.name}"]
+
+    if contract:
+        today = date.today()
+        period_end = current_period_end(contract, today)
+        deadline = notice_deadline(contract, today)
+        notice_days = active_notice_period_days(contract, today)
+        renewing = in_renewal_phase(contract, today)
+
+        lines.append(f"Anbieter: {contract.provider}")
+        if contract.contract_number:
+            lines.append(f"Vertragsnummer: {contract.contract_number}")
+        if contract.start_date:
+            lines.append(f"Vertragsbeginn: {contract.start_date.isoformat()}")
+        if contract.initial_term_months:
+            lines.append(f"Anfangslaufzeit: {contract.initial_term_months} Monat(e)")
+        if contract.end_date:
+            label = "Ende der Anfangslaufzeit" if contract.auto_renewal else "Vertragsende"
+            lines.append(f"{label}: {contract.end_date.isoformat()}")
+        if period_end:
+            if renewing:
+                lines.append(f"Ende der aktuellen Verlängerungsperiode: {period_end.isoformat()}")
+            elif period_end != contract.end_date:
+                lines.append(f"Aktuelles Periodenende: {period_end.isoformat()}")
+        if notice_days is not None:
+            if renewing:
+                lines.append(f"Kündigungsfrist (Verlängerung): {notice_days} Tage")
+            else:
+                lines.append(f"Kündigungsfrist: {notice_days} Tage")
+            if deadline:
+                lines.append(f"Letzter Kündigungstermin: {deadline.isoformat()}")
+        lines.append(f"Automatische Verlängerung: {'ja' if contract.auto_renewal else 'nein'}")
+        if contract.auto_renewal:
+            if contract.renewal_term_months:
+                lines.append(f"Verlängerungslaufzeit: {contract.renewal_term_months} Monat(e)")
+            if contract.renewal_notice_period_days is not None:
+                lines.append(
+                    f"Kündigungsfrist nach Verlängerung: {contract.renewal_notice_period_days} Tage"
+                )
+            if renewing:
+                lines.append("Status: Vertrag befindet sich in der Verlängerungsphase")
+        if contract.notes:
+            lines.extend(["", f"Notizen: {contract.notes}"])
+
+    if candidate.reminder_type == REMINDER_PRICE and candidate.price_history:
+        hist = candidate.price_history
+        if candidate.previous_amount is not None:
+            lines.append(f"Bisheriger Betrag: {candidate.previous_amount} {item.currency}")
+        lines.append(f"Neuer Betrag: {hist.amount} {item.currency}")
+        lines.append(f"Gültig ab: {hist.valid_from.isoformat()}")
+        if hist.notes:
+            lines.append(f"Hinweis: {hist.notes}")
+
+    if candidate.reminder_type == REMINDER_ONE_TIME:
+        lines.append(f"Betrag: {item.amount} {item.currency}")
+        lines.append(f"Datum: {candidate.target_date.isoformat()}")
+
+    if candidate.reminder_type == REMINDER_DUE:
+        lines.append(f"Fälligkeit: {candidate.details.get('due_label', candidate.target_date.isoformat())}")
+        lines.append(f"Nächster Termin: {candidate.target_date.isoformat()}")
+        lines.append(f"Betrag: {item.amount} {item.currency}")
+
     lines.extend(
         [
             "",
@@ -250,6 +454,27 @@ def process_reminders(
             "reason": "SMTP ist nicht aktiv oder unvollständig konfiguriert",
             "sent": 0,
             "skipped": 0,
+            "candidates": 0,
+            "errors": [],
+        }
+
+    any_topic = any(
+        [
+            settings.notify_notice_deadline,
+            settings.notify_contract_end,
+            settings.notify_contract_start,
+            settings.notify_price_change,
+            settings.notify_one_time,
+            settings.notify_due_dates,
+        ]
+    )
+    if not any_topic:
+        return {
+            "status": "skipped",
+            "reason": "Keine Benachrichtigungs-Themen aktiviert",
+            "sent": 0,
+            "skipped": 0,
+            "candidates": 0,
             "errors": [],
         }
 
@@ -262,7 +487,7 @@ def process_reminders(
     for candidate in candidates:
         if not force and _already_sent(
             db,
-            contract_id=candidate.contract.id,
+            subject_key=candidate.subject_key,
             reminder_type=candidate.reminder_type,
             target_date=candidate.target_date,
             lead_days=candidate.lead_days,
@@ -270,24 +495,19 @@ def process_reminders(
             skipped += 1
             continue
 
-        to_addrs, has_assignment = resolve_recipients(db, candidate.cost_item)
+        to_addrs, _has_assignment = resolve_recipients(db, candidate.cost_item)
         cc_addrs = [default_cc] if default_cc else []
 
         if not to_addrs:
-            # Unassigned or no emails → send to default
             if not default_cc:
                 errors.append(
-                    f"Vertrag {candidate.contract.id} ({candidate.cost_item.name}): "
+                    f"{candidate.reminder_type} / {candidate.cost_item.name}: "
                     "keine Empfänger und keine Default-E-Mail"
                 )
                 continue
             to_addrs = [default_cc]
             cc_addrs = []
-        elif not has_assignment and default_cc and default_cc not in to_addrs:
-            # Household-only: ensure default is informed as To if somehow empty
-            pass
 
-        # Always CC default when recipients exist and default is set
         if default_cc and default_cc not in to_addrs and default_cc not in cc_addrs:
             cc_addrs.append(default_cc)
 
@@ -300,16 +520,15 @@ def process_reminders(
                 subject=subject,
                 body=body,
             )
-        except Exception as exc:  # noqa: BLE001 — surface to admin summary
-            errors.append(
-                f"Vertrag {candidate.contract.id} ({candidate.cost_item.name}): {exc}"
-            )
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{candidate.cost_item.name} ({candidate.reminder_type}): {exc}")
             continue
 
         if not force:
             db.add(
                 ReminderLog(
-                    contract_id=candidate.contract.id,
+                    subject_key=candidate.subject_key,
+                    contract_id=candidate.contract.id if candidate.contract else None,
                     reminder_type=candidate.reminder_type,
                     target_date=candidate.target_date,
                     lead_days=candidate.lead_days,

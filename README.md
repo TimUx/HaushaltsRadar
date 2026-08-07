@@ -16,11 +16,11 @@ HaushaltsRadar ist **kein** klassisches Haushaltsbuch und **keine** Banking-Soft
 | **Analysen** | Verteilung, Vergleich, Verlauf, Hierarchie, Heatmap und Flussdiagramme – filterbar nach Objekt, Kategorie, Tag, Person, Partei |
 | **Berichte** | Periodenberichte (Monat, Quartal, Halbjahr, Jahr, Zeitraum) mit PDF-Export |
 | **Posten** | Ausgaben & Einnahmen, Intervalle (monatlich bis jährlich, einmalig, custom), Anteile, Tags, Objekte |
-| **Verträge** | Vertragsstammdaten und Verknüpfung zu Kostenpositionen |
+| **Verträge** | Beginn + Laufzeit (Ende berechnet), Auto-Verlängerung mit eigener Frist, Verknüpfung zu Kostenpositionen |
 | **Organisation** | Personen, Parteien, Objekte, Kategorien, Tags |
 | **Meine Finanzen** | Persönliche Sicht über verknüpfte Person (User ↔ Person) |
 | **Historie / Struktur / Übersicht** | Kostenverlauf, Strukturansicht und tabellarische Kostenübersicht |
-| **Administration** | Benutzer & Rollen (`admin` / `user` / `viewer`), JSON-Export/Import und Backup/Restore |
+| **Administration** | Benutzer & Rollen, SMTP-Erinnerungen, JSON-Export/Import & Backup |
 | **PWA** | Als Progressive Web App nutzbar (Light/Dark Mode) |
 
 ![Analysen](docs/screenshots/02-analysen.png)
@@ -36,8 +36,14 @@ git clone https://github.com/TimUx/HaushaltsRadar.git
 cd HaushaltsRadar
 cp .env.example .env
 # SECRET_KEY und Bootstrap-Passwort in .env anpassen
-docker compose up --build
+export HAUSHALTSRADAR_VERSION=1.1.2   # oder latest
+docker compose up -d
 ```
+
+`docker-compose.yml` nutzt die vorgebauten Images aus GHCR (`linux/amd64`, `linux/arm64`):
+
+- `ghcr.io/timux/haushaltsradar-backend`
+- `ghcr.io/timux/haushaltsradar-frontend`
 
 | Dienst | URL |
 |--------|-----|
@@ -48,20 +54,7 @@ Standard-Login (änderbar in `.env`): **`admin` / `admin`**
 
 Optionale Demo-Daten: `SEED_SAMPLE_DATA=true` in `.env` (Standard in `.env.example`).
 
-### Fertige Images (GHCR)
-
-Bei jedem GitHub-Release werden Backend- und Frontend-Images nach GHCR gebaut (`linux/amd64`, `linux/arm64`):
-
-- `ghcr.io/timux/haushaltsradar-backend`
-- `ghcr.io/timux/haushaltsradar-frontend`
-
-```bash
-cp .env.example .env
-export HAUSHALTSRADAR_VERSION=1.0.0   # oder latest
-docker compose -f docker-compose.ghcr.yml up -d
-```
-
-Tags pro Release u. a.: `v1.0.0`, `1.0.0`, `1.0`, `latest` (kein Prerelease).
+Lokale Entwicklung mit Hot-Reload: `docker compose -f docker-compose.dev.yml up --build`
 
 ## Dokumentation
 
@@ -77,7 +70,7 @@ Tags pro Release u. a.: `v1.0.0`, `1.0.0`, `1.0`, `latest` (kein Prerelease).
 |---------|-------------|
 | Backend | Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Pydantic |
 | Frontend | React, TypeScript, Vite, Material UI, TanStack Query, Apache ECharts, jsPDF |
-| Deploy | Docker Compose |
+| Deploy | Docker Compose + GHCR |
 
 ## Zugriffsmodell
 
@@ -85,7 +78,7 @@ Tags pro Release u. a.: `v1.0.0`, `1.0.0`, `1.0`, `latest` (kein Prerelease).
 |-------|--------|
 | **viewer** | Lesen: Dashboard, Analysen, Berichte, Übersichten |
 | **user** | Zusätzlich: Posten, Verträge, Stammdaten pflegen |
-| **admin** | Zusätzlich: Benutzerverwaltung, Datenexport/-import & Backup |
+| **admin** | Zusätzlich: Benutzerverwaltung, SMTP, Datenexport/-import & Backup |
 
 ## Lizenz
 

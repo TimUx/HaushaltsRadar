@@ -54,7 +54,8 @@ def test_export_import_roundtrip(client: TestClient):
     assert "ShouldVanish" not in names
 
 
-def test_import_accepts_legacy_kostenpilot_app_id(client: TestClient):
+def test_import_accepts_legacy_app_id(client: TestClient):
+    """Backups exported before the product rename still use app id 'kostenpilot'."""
     headers = _admin_headers(client)
     export = client.get("/api/v1/admin/export", headers=headers)
     assert export.status_code == 200

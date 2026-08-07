@@ -151,8 +151,12 @@ def seed_sample_data(db: Session) -> None:
             cost_item_id=strom.id,
             provider="Stadtwerke Musterstadt",
             start_date=date(2025, 1, 1),
+            initial_term_months=24,
+            end_date=date(2027, 1, 1),
             notice_period_days=90,
             auto_renewal=True,
+            renewal_term_months=1,
+            renewal_notice_period_days=30,
         )
     )
     db.add_all(

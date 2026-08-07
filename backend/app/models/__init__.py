@@ -279,9 +279,14 @@ class Contract(Base, TimestampMixin):
     provider: Mapped[str] = mapped_column(String(200), nullable=False)
     contract_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    # Initial fixed term in months; end_date is derived/synced from start + term
+    initial_term_months: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     notice_period_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     auto_renewal: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # After initial term: renewal slice length and notice (e.g. 1 month / 30 days)
+    renewal_term_months: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    renewal_notice_period_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     cost_item: Mapped[CostItem] = relationship(back_populates="contract")
@@ -351,34 +356,39 @@ class SmtpSettings(Base, TimestampMixin):
     from_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     from_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     default_cc_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    # Comma-separated lead days before notice deadline / contract end, e.g. "30,14,7,1"
+    # Comma-separated lead days before target dates, e.g. "30,14,7,1"
     remind_days_before: Mapped[str] = mapped_column(
         String(100), default="30,14,7,1", nullable=False
     )
+    notify_notice_deadline: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_contract_end: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_contract_start: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    notify_price_change: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    notify_one_time: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    notify_due_dates: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
 class ReminderLog(Base, TimestampMixin):
-    """Deduplicate sent contract reminders."""
+    """Deduplicate sent reminders."""
 
     __tablename__ = "reminder_logs"
     __table_args__ = (
         UniqueConstraint(
-            "contract_id",
+            "subject_key",
             "reminder_type",
             "target_date",
             "lead_days",
-            name="uq_reminder_contract_type_target_lead",
+            name="uq_reminder_subject_type_target_lead",
         ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    contract_id: Mapped[int] = mapped_column(
-        ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True
+    subject_key: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    contract_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("contracts.id", ondelete="CASCADE"), nullable=True, index=True
     )
     reminder_type: Mapped[str] = mapped_column(String(40), nullable=False)
     target_date: Mapped[date] = mapped_column(Date, nullable=False)
     lead_days: Mapped[int] = mapped_column(Integer, nullable=False)
     recipients: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    sent_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

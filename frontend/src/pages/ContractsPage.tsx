@@ -40,10 +40,14 @@ import {
 type FormState = {
   provider: string
   costItemId: number | ''
+  startDate: string
+  initialTermMonths: string
   noticeDays: string
   endDate: string
   contractNumber: string
   autoRenewal: boolean
+  renewalTermMonths: string
+  renewalNoticeDays: string
   notes: string
   allocations: AllocationDraft[]
 }
@@ -52,13 +56,35 @@ function defaultForm(): FormState {
   return {
     provider: '',
     costItemId: '',
+    startDate: '',
+    initialTermMonths: '24',
     noticeDays: '90',
     endDate: '',
     contractNumber: '',
     autoRenewal: true,
+    renewalTermMonths: '1',
+    renewalNoticeDays: '30',
     notes: '',
     allocations: [emptyAllocation(true)],
   }
+}
+
+function formatDays(days: number | null | undefined): string {
+  if (days == null) return '–'
+  return `${days} Tage`
+}
+
+function termSummary(contract: Contract): string {
+  const parts: string[] = []
+  if (contract.start_date && contract.initial_term_months) {
+    parts.push(`${contract.initial_term_months} Mon.`)
+  } else if (contract.end_date) {
+    parts.push(`Ende ${contract.end_date}`)
+  }
+  if (contract.auto_renewal && contract.renewal_term_months) {
+    parts.push(`dann +${contract.renewal_term_months} Mon.`)
+  }
+  return parts.length ? parts.join(' · ') : '–'
 }
 
 export function ContractsPage() {
@@ -91,16 +117,25 @@ export function ContractsPage() {
     return map
   }, [costItems])
 
+  const hasTerm = Boolean(form.startDate && form.initialTermMonths)
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const costItemId = Number(form.costItemId)
+      const initialTerm = form.initialTermMonths ? Number(form.initialTermMonths) : null
+      const renewalTerm = form.renewalTermMonths ? Number(form.renewalTermMonths) : null
+      const renewalNotice = form.renewalNoticeDays ? Number(form.renewalNoticeDays) : null
       const contractPayload = {
         provider: form.provider,
         cost_item_id: costItemId,
+        start_date: form.startDate || null,
+        initial_term_months: initialTerm,
         notice_period_days: form.noticeDays ? Number(form.noticeDays) : null,
-        end_date: form.endDate || null,
+        end_date: initialTerm && form.startDate ? null : form.endDate || null,
         contract_number: form.contractNumber || null,
         auto_renewal: form.autoRenewal,
+        renewal_term_months: form.autoRenewal ? renewalTerm : null,
+        renewal_notice_period_days: form.autoRenewal ? renewalNotice : null,
         notes: form.notes || null,
       }
 
@@ -110,10 +145,14 @@ export function ContractsPage() {
       } else {
         contract = await contractsApi.update(editingId, {
           provider: form.provider,
+          start_date: form.startDate || null,
+          initial_term_months: initialTerm,
           notice_period_days: form.noticeDays ? Number(form.noticeDays) : null,
-          end_date: form.endDate || null,
+          end_date: initialTerm && form.startDate ? null : form.endDate || null,
           contract_number: form.contractNumber || null,
           auto_renewal: form.autoRenewal,
+          renewal_term_months: form.autoRenewal ? renewalTerm : null,
+          renewal_notice_period_days: form.autoRenewal ? renewalNotice : null,
           notes: form.notes || null,
         })
       }
@@ -169,11 +208,20 @@ export function ContractsPage() {
     setForm({
       provider: contract.provider,
       costItemId: contract.cost_item_id,
+      startDate: contract.start_date || '',
+      initialTermMonths:
+        contract.initial_term_months != null ? String(contract.initial_term_months) : '',
       noticeDays:
         contract.notice_period_days != null ? String(contract.notice_period_days) : '',
       endDate: contract.end_date || '',
       contractNumber: contract.contract_number || '',
       autoRenewal: contract.auto_renewal,
+      renewalTermMonths:
+        contract.renewal_term_months != null ? String(contract.renewal_term_months) : '',
+      renewalNoticeDays:
+        contract.renewal_notice_period_days != null
+          ? String(contract.renewal_notice_period_days)
+          : '',
       notes: contract.notes || '',
       allocations: item ? draftsFromAllocations(item.allocations) : [emptyAllocation(true)],
     })
@@ -220,7 +268,8 @@ export function ContractsPage() {
             <TableRow>
               <TableCell>Anbieter</TableCell>
               <TableCell>Kostenposition</TableCell>
-              <TableCell>Vertragsende</TableCell>
+              <TableCell>Laufzeit</TableCell>
+              <TableCell>Periodenende</TableCell>
               <TableCell>Kündigungsfrist</TableCell>
               <TableCell align="right">Aktionen</TableCell>
             </TableRow>
@@ -230,11 +279,13 @@ export function ContractsPage() {
               <TableRow key={contract.id}>
                 <TableCell>{contract.provider}</TableCell>
                 <TableCell>{costItemName(contract.cost_item_id)}</TableCell>
-                <TableCell>{contract.end_date || '–'}</TableCell>
+                <TableCell>{termSummary(contract)}</TableCell>
+                <TableCell>{contract.current_period_end || contract.end_date || '–'}</TableCell>
                 <TableCell>
-                  {contract.notice_period_days != null
-                    ? `${contract.notice_period_days} Tage`
-                    : '–'}
+                  {formatDays(contract.active_notice_period_days ?? contract.notice_period_days)}
+                  {contract.current_notice_deadline
+                    ? ` (bis ${contract.current_notice_deadline})`
+                    : ''}
                 </TableCell>
                 <TableCell align="right">
                   <IconButton aria-label="Bearbeiten" onClick={() => openEdit(contract)} size="small">
@@ -288,28 +339,41 @@ export function ContractsPage() {
                 onChange={(e) => setForm((f) => ({ ...f, contractNumber: e.target.value }))}
               />
               <TextField
-                label="Vertragsende"
+                label="Vertragsbeginn"
                 type="date"
                 fullWidth
                 slotProps={{ inputLabel: { shrink: true } }}
-                value={form.endDate}
-                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-                helperText="Benötigt für Erinnerungen zu Kündigungsfrist und Vertragsende"
+                value={form.startDate}
+                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
               />
               <TextField
-                label="Kündigungsfrist (Tage)"
+                label="Anfangslaufzeit (Monate)"
+                type="number"
+                fullWidth
+                value={form.initialTermMonths}
+                onChange={(e) => setForm((f) => ({ ...f, initialTermMonths: e.target.value }))}
+                helperText="Bevorzugt: Beginn + Laufzeit; Vertragsende wird automatisch berechnet"
+              />
+              <TextField
+                label="Kündigungsfrist Anfangslaufzeit (Tage)"
                 type="number"
                 fullWidth
                 value={form.noticeDays}
                 onChange={(e) => setForm((f) => ({ ...f, noticeDays: e.target.value }))}
               />
               <TextField
-                label="Notizen"
+                label="Vertragsende"
+                type="date"
                 fullWidth
-                multiline
-                minRows={2}
-                value={form.notes}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                disabled={hasTerm}
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={form.endDate}
+                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                helperText={
+                  hasTerm
+                    ? 'Wird aus Beginn + Laufzeit berechnet'
+                    : 'Nur nötig, wenn keine Laufzeit in Monaten gesetzt ist'
+                }
               />
               <FormControlLabel
                 control={
@@ -319,6 +383,38 @@ export function ContractsPage() {
                   />
                 }
                 label="Automatische Verlängerung"
+              />
+              {form.autoRenewal && (
+                <>
+                  <TextField
+                    label="Verlängerungslaufzeit (Monate)"
+                    type="number"
+                    fullWidth
+                    value={form.renewalTermMonths}
+                    onChange={(e) => setForm((f) => ({ ...f, renewalTermMonths: e.target.value }))}
+                    helperText="z. B. 1 Monat nach Ende der Anfangslaufzeit"
+                  />
+                  <TextField
+                    label="Kündigungsfrist nach Verlängerung (Tage)"
+                    type="number"
+                    fullWidth
+                    value={form.renewalNoticeDays}
+                    onChange={(e) => setForm((f) => ({ ...f, renewalNoticeDays: e.target.value }))}
+                    helperText="z. B. 30 Tage = monatliche Kündigungsfrist"
+                  />
+                </>
+              )}
+              <Typography variant="body2" color="text.secondary">
+                Beispiel: Beginn + 24 Monate; nach Ende Verlängerung 1 Monat mit monatlicher
+                Kündigungsfrist.
+              </Typography>
+              <TextField
+                label="Notizen"
+                fullWidth
+                multiline
+                minRows={2}
+                value={form.notes}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               />
               <AllocationEditor
                 persons={persons}

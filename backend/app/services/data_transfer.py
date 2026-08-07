@@ -30,7 +30,7 @@ from app.models import (
 
 SCHEMA_VERSION = 1
 APP_NAME = "haushaltsradar"
-# Accept legacy KostenPilot backups during import
+# Accept legacy JSON backups that still declare the previous product app id
 LEGACY_APP_NAMES = frozenset({"kostenpilot"})
 
 
@@ -179,9 +179,12 @@ def export_bundle(db: Session) -> dict[str, Any]:
                 "provider": c.provider,
                 "contract_number": c.contract_number,
                 "start_date": _jsonable(c.start_date),
+                "initial_term_months": c.initial_term_months,
                 "end_date": _jsonable(c.end_date),
                 "notice_period_days": c.notice_period_days,
                 "auto_renewal": c.auto_renewal,
+                "renewal_term_months": c.renewal_term_months,
+                "renewal_notice_period_days": c.renewal_notice_period_days,
                 "notes": c.notes,
                 "created_at": _jsonable(c.created_at),
                 "updated_at": _jsonable(c.updated_at),
@@ -413,9 +416,12 @@ def import_bundle(db: Session, bundle: dict[str, Any]) -> dict[str, int]:
                 provider=row["provider"],
                 contract_number=row.get("contract_number"),
                 start_date=_parse_date(row.get("start_date")),
+                initial_term_months=row.get("initial_term_months"),
                 end_date=_parse_date(row.get("end_date")),
                 notice_period_days=row.get("notice_period_days"),
                 auto_renewal=bool(row.get("auto_renewal", True)),
+                renewal_term_months=row.get("renewal_term_months"),
+                renewal_notice_period_days=row.get("renewal_notice_period_days"),
                 notes=row.get("notes"),
             )
         )

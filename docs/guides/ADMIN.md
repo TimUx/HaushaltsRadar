@@ -22,23 +22,15 @@ In `.env` mindestens setzen:
 | `CORS_ORIGINS` | Erlaubte Frontend-Origins (inkl. deiner öffentlichen URL) |
 | `SEED_SAMPLE_DATA` | `false` in Produktion, sofern keine Demo-Daten gewünscht |
 
-Start (lokaler Build):
+Start mit vorgebauten GHCR-Images:
 
 ```bash
-docker compose up --build -d
-```
-
-Oder mit vorgebauten Release-Images aus GHCR:
-
-```bash
-export HAUSHALTSRADAR_VERSION=1.0.0   # ohne führendes v, oder latest
-docker compose -f docker-compose.ghcr.yml up -d
+export HAUSHALTSRADAR_VERSION=1.1.2   # ohne führendes v, oder latest
+docker compose up -d
 ```
 
 Images: `ghcr.io/timux/haushaltsradar-backend` und `ghcr.io/timux/haushaltsradar-frontend`  
 Werden automatisch gebaut, sobald ein GitHub-Release veröffentlicht wird (Workflow `.github/workflows/release-ghcr.yml`).
-
-Hinweis: Ältere Releases veröffentlichten noch `ghcr.io/timux/kostenpilot-*`. Neue Releases nutzen die `haushaltsradar-*`-Packages.
 
 Nach dem ersten Push sind GHCR-Packages oft **privat**. Unter GitHub → Packages → jeweiliges Package → *Package settings* → Visibility auf **Public** stellen (sonst brauchen Nutzer `docker login ghcr.io`).
 
@@ -69,12 +61,13 @@ Es muss immer mindestens ein aktiver Admin existieren; die App verhindert das De
 Pfad: **Administration → E-Mail / SMTP**
 
 - SMTP aktivieren, Host/Port/TLS, Absender und **Default-E-Mail (CC)** setzen
-- Erinnerungstage vor Stichtag (Standard `30,14,7,1`) für Kündigungsfrist und Vertragsende
+- Themen einzeln schalten: Kündigungsfrist, Vertragsende, Vertragsbeginn, Preisänderung, Einmalzahlung, Fälligkeiten
+- Erinnerungstage vor Stichtag (Standard `30,14,7,1`) für alle aktivierten Themen
 - Täglicher Job um 07:00 (Europe/Berlin); manuell: „Erinnerungen jetzt prüfen“
 - Empfänger: Benutzer-E-Mail (wenn Person verknüpft), sonst Personen-E-Mail; bei Partei-Zuordnung alle Personen der Partei
 - Ohne Zuordnung oder ohne Empfänger-Adresse: Versand an die Default-E-Mail
 
-E-Mail-Adressen pflegen unter **Benutzer** und **Personen**. Am Vertrag **Vertragsende** und **Kündigungsfrist** setzen.
+E-Mail-Adressen pflegen unter **Benutzer** und **Personen**. Am Vertrag **Vertragsbeginn** und **Anfangslaufzeit** (oder manuelles Vertragsende) sowie **Kündigungsfrist** setzen. Bei Auto-Verlängerung optional **Verlängerungslaufzeit** und **Kündigungsfrist nach Verlängerung** – Erinnerungen nutzen dann die aktuelle Periode und Frist.
 
 ## Benutzerverwaltung
 
@@ -129,15 +122,17 @@ docker compose logs -f backend frontend
 docker compose down
 docker compose up -d
 
-# Volume (PostgreSQL-Daten; Legacy-Name kostenpilot_kostenpilot_pgdata)
-# docker volume ls | grep -E 'kostenpilot|haushaltsradar'
+# Volume (PostgreSQL-Daten)
+# docker volume ls | grep haushaltsradar
 ```
 
 Updates:
 
 ```bash
 git pull
-docker compose up --build -d
+export HAUSHALTSRADAR_VERSION=latest   # oder konkrete Version
+docker compose pull
+docker compose up -d
 ```
 
 Migrationen laufen über Alembic beim Backend-Start bzw. manuell (`alembic upgrade head`). Details: [Developer-Guide](DEVELOPER.md).

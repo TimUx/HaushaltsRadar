@@ -196,6 +196,53 @@ def ensure_schema(engine: Engine) -> None:
         )
         """,
         "CREATE INDEX IF NOT EXISTS ix_reminder_logs_contract_id ON reminder_logs(contract_id)",
+        "ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS notify_notice_deadline BOOLEAN NOT NULL DEFAULT TRUE",
+        "ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS notify_contract_end BOOLEAN NOT NULL DEFAULT TRUE",
+        "ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS notify_contract_start BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS notify_price_change BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS notify_one_time BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS notify_due_dates BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE reminder_logs ADD COLUMN IF NOT EXISTS subject_key VARCHAR(80)",
+        """
+        UPDATE reminder_logs
+        SET subject_key = 'contract:' || contract_id::text
+        WHERE subject_key IS NULL AND contract_id IS NOT NULL
+        """,
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'reminder_logs' AND column_name = 'subject_key'
+            ) THEN
+                ALTER TABLE reminder_logs ALTER COLUMN subject_key SET DEFAULT '';
+                UPDATE reminder_logs SET subject_key = 'legacy:' || id::text WHERE subject_key IS NULL OR subject_key = '';
+                ALTER TABLE reminder_logs ALTER COLUMN subject_key SET NOT NULL;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'reminder_logs' AND column_name = 'contract_id'
+            ) THEN
+                ALTER TABLE reminder_logs ALTER COLUMN contract_id DROP NOT NULL;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'uq_reminder_contract_type_target_lead'
+            ) THEN
+                ALTER TABLE reminder_logs DROP CONSTRAINT uq_reminder_contract_type_target_lead;
+            END IF;
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'uq_reminder_subject_type_target_lead'
+            ) THEN
+                ALTER TABLE reminder_logs
+                    ADD CONSTRAINT uq_reminder_subject_type_target_lead
+                    UNIQUE (subject_key, reminder_type, target_date, lead_days);
+            END IF;
+        END $$
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_reminder_logs_subject_key ON reminder_logs(subject_key)",
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS initial_term_months INTEGER",
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS renewal_term_months INTEGER",
+        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS renewal_notice_period_days INTEGER",
     ]
     with engine.begin() as conn:
         for statement in statements:
