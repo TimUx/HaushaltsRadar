@@ -69,7 +69,7 @@ export function TagsPage() {
     <Stack spacing={2}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Tags können mehrfach an Kostenpositionen vergeben werden (z.&nbsp;B. Strom, Internet, KFZ).
+          Tags können mehrfach an Posten vergeben werden (z.&nbsp;B. Strom, Internet, KFZ).
         </Typography>
         <Button variant="contained" onClick={openCreate} sx={{ flexShrink: 0 }}>
           Tag hinzufügen

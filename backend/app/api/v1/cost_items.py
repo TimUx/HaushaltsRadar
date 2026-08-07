@@ -27,7 +27,7 @@ from app.services.amounts import monthly_amount, monthly_from_amount, yearly_amo
 from app.services.bootstrap import validate_allocations
 from app.services.cost_history import record_price_history
 
-router = APIRouter(prefix="/cost-items", tags=["Kosten"])
+router = APIRouter(prefix="/cost-items", tags=["Posten"])
 
 
 def _resolve_tags(db: Session, tag_ids: list[int]) -> list[Tag]:
@@ -148,7 +148,7 @@ def create_cost_item(
         item,
         event_type=CostHistoryEvent.created,
         valid_from=item.start_date or date.today(),
-        notes=f"Kostenposition angelegt ({item.amount} €)",
+        notes=f"Posten angelegt ({item.amount} €)",
     )
     db.commit()
     loaded = _load_item(db, item.id)
@@ -164,7 +164,7 @@ def get_cost_item(
 ) -> CostItemRead:
     item = _load_item(db, item_id)
     if not item:
-        raise HTTPException(status_code=404, detail="Kostenposition nicht gefunden")
+        raise HTTPException(status_code=404, detail="Posten nicht gefunden")
     return _to_read(item)
 
 
@@ -177,7 +177,7 @@ def update_cost_item(
 ) -> CostItemRead:
     item = _load_item(db, item_id)
     if not item:
-        raise HTTPException(status_code=404, detail="Kostenposition nicht gefunden")
+        raise HTTPException(status_code=404, detail="Posten nicht gefunden")
 
     before_amount = Decimal(item.amount)
     before_interval = item.payment_interval
@@ -232,7 +232,7 @@ def update_cost_item(
             item,
             event_type=CostHistoryEvent.ended,
             valid_from=price_valid_from,
-            notes=price_change_notes or "Kostenposition deaktiviert",
+            notes=price_change_notes or "Posten deaktiviert",
             force_zero=True,
         )
     elif not before_active and item.is_active:
@@ -241,7 +241,7 @@ def update_cost_item(
             item,
             event_type=CostHistoryEvent.reactivated,
             valid_from=price_valid_from,
-            notes=price_change_notes or "Kostenposition reaktiviert",
+            notes=price_change_notes or "Posten reaktiviert",
         )
     elif amount_changed:
         note = price_change_notes or (
@@ -277,7 +277,7 @@ def delete_cost_item(
     """
     item = _load_item(db, item_id)
     if not item:
-        raise HTTPException(status_code=404, detail="Kostenposition nicht gefunden")
+        raise HTTPException(status_code=404, detail="Posten nicht gefunden")
 
     if permanent:
         db.delete(item)
@@ -290,7 +290,7 @@ def delete_cost_item(
             db,
             item,
             event_type=CostHistoryEvent.ended,
-            notes="Kostenposition deaktiviert",
+            notes="Posten deaktiviert",
             force_zero=True,
         )
     db.commit()
@@ -303,7 +303,7 @@ def list_item_price_history(
     _: User = Depends(require_editor),
 ) -> list[PriceHistory]:
     if not db.get(CostItem, item_id):
-        raise HTTPException(status_code=404, detail="Kostenposition nicht gefunden")
+        raise HTTPException(status_code=404, detail="Posten nicht gefunden")
     return (
         db.query(PriceHistory)
         .filter(PriceHistory.cost_item_id == item_id)
@@ -326,7 +326,7 @@ def create_item_price_history(
     """Add a dated price point so past years keep the correct contribution."""
     item = db.get(CostItem, item_id)
     if not item:
-        raise HTTPException(status_code=404, detail="Kostenposition nicht gefunden")
+        raise HTTPException(status_code=404, detail="Posten nicht gefunden")
 
     monthly = monthly_from_amount(
         payload.amount,

@@ -90,7 +90,7 @@ export function CategoriesPage() {
     <Stack spacing={2}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Eine Hauptkategorie je Kostenposition. Feinere Labels pflegen Sie unter Tags.
+          Eine Hauptkategorie je Posten. Feinere Labels pflegen Sie unter Tags.
         </Typography>
         <Button variant="contained" onClick={openCreate} sx={{ flexShrink: 0 }}>
           Kategorie hinzufügen

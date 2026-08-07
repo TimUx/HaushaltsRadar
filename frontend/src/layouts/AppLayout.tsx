@@ -72,7 +72,7 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
   const navigate = useNavigate()
   const { isAuthenticated, user, logout } = useAuth()
 
-  const financePaths = ['/', '/analysen', '/historie', '/kostenuebersicht', '/kosten']
+  const financePaths = ['/', '/analysen', '/historie', '/kostenuebersicht', '/posten']
   const myFinancesActive = new URLSearchParams(location.search).get('meine') === '1'
 
   function toggleMyFinances() {
@@ -111,7 +111,7 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
         {
           title: 'Finanzen',
           items: [
-            { label: 'Posten', to: '/kosten', icon: <PaymentsIcon /> },
+            { label: 'Posten', to: '/posten', icon: <PaymentsIcon /> },
             { label: 'Verträge', to: '/vertraege', icon: <DescriptionIcon /> },
           ],
         },

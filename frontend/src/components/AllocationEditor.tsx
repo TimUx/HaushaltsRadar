@@ -13,6 +13,7 @@ import {
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import AddIcon from '@mui/icons-material/Add'
 import type { Party, Person } from '../api/types'
+import { createId } from '../utils/id'
 
 export type AllocationDraft = {
   key: string
@@ -24,7 +25,7 @@ export type AllocationDraft = {
 
 export function emptyAllocation(isHousehold = false): AllocationDraft {
   return {
-    key: crypto.randomUUID(),
+    key: createId(),
     is_household: isHousehold,
     person_id: '',
     party_id: '',
@@ -42,7 +43,7 @@ export function draftsFromAllocations(
 ): AllocationDraft[] {
   if (!allocations.length) return [emptyAllocation(true)]
   return allocations.map((a) => ({
-    key: crypto.randomUUID(),
+    key: createId(),
     is_household: a.is_household,
     person_id: a.person_id ?? '',
     party_id: a.party_id ?? '',

@@ -43,10 +43,10 @@ def create_contract(
     _: User = Depends(require_editor),
 ) -> ContractRead:
     if not db.get(CostItem, payload.cost_item_id):
-        raise HTTPException(status_code=400, detail="Kostenposition nicht gefunden")
+        raise HTTPException(status_code=400, detail="Posten nicht gefunden")
     existing = db.query(Contract).filter(Contract.cost_item_id == payload.cost_item_id).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Für diese Kostenposition existiert bereits ein Vertrag")
+        raise HTTPException(status_code=400, detail="Für diesen Posten existiert bereits ein Vertrag")
     data = payload.model_dump()
     # Prefer term-based end; ignore manual end when term is set
     if data.get("start_date") and data.get("initial_term_months"):
@@ -124,7 +124,7 @@ def create_price_history(
 ) -> PriceHistory:
     item = db.get(CostItem, payload.cost_item_id)
     if not item:
-        raise HTTPException(status_code=400, detail="Kostenposition nicht gefunden")
+        raise HTTPException(status_code=400, detail="Posten nicht gefunden")
     data = payload.model_dump()
     if not data.get("monthly_amount"):
         from decimal import Decimal
@@ -164,7 +164,7 @@ def create_document_link(
     _: User = Depends(require_editor),
 ) -> DocumentLink:
     if not db.get(CostItem, payload.cost_item_id):
-        raise HTTPException(status_code=400, detail="Kostenposition nicht gefunden")
+        raise HTTPException(status_code=400, detail="Posten nicht gefunden")
     link = DocumentLink(**payload.model_dump())
     db.add(link)
     db.commit()
