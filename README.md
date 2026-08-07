@@ -21,8 +21,10 @@ HaushaltsRadar ist **kein** klassisches Haushaltsbuch und **keine** Banking-Soft
 | **Verträge** | Beginn + Laufzeit (Ende berechnet), Auto-Verlängerung mit eigener Frist, Verknüpfung zu Kostenpositionen |
 | **Organisation** | Personen, Parteien, Objekte, Kategorien, Tags |
 | **Meine Finanzen** | Persönliche Sicht über verknüpfte Person (User ↔ Person) |
+| **Mein Konto** | Self-Service: E-Mail, Benutzername, Passwort (alle Rollen) |
 | **Historie / Struktur / Übersicht** | Kostenverlauf, Strukturansicht und tabellarische Kostenübersicht |
-| **Administration** | Benutzer & Rollen, SMTP-Erinnerungen, JSON-Export/Import & Backup |
+| **Administration** | Benutzer & Rollen, SMTP-Erinnerungen (inkl. Passwort vergessen), JSON-Export/Import & Backup |
+| **Anmeldung** | Angemeldet bleiben, optional Passwort vergessen bei aktivem SMTP |
 | **PWA** | Als Progressive Web App nutzbar (Light/Dark Mode) |
 
 ![Analysen](docs/screenshots/02-analysen.png)
@@ -38,7 +40,7 @@ git clone https://github.com/TimUx/HaushaltsRadar.git
 cd HaushaltsRadar
 cp .env.example .env
 # SECRET_KEY und Bootstrap-Passwort in .env anpassen
-export HAUSHALTSRADAR_VERSION=1.1.2   # oder latest
+export HAUSHALTSRADAR_VERSION=1.1.3   # oder latest
 docker compose up -d
 ```
 

@@ -23,6 +23,7 @@ class TokenResponse(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    remember_me: bool = False
 
 
 class RefreshRequest(BaseModel):
@@ -55,6 +56,34 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
     person_id: Optional[int] = None
+
+
+class ProfileUpdate(BaseModel):
+    """Self-service update for the logged-in user (no role/admin fields)."""
+
+    username: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    email: Optional[str] = Field(default=None, max_length=255)
+    current_password: Optional[str] = Field(default=None, max_length=200)
+    new_password: Optional[str] = Field(default=None, min_length=6, max_length=200)
+
+
+class PasswordResetAvailable(BaseModel):
+    available: bool
+
+
+class PasswordResetRequest(BaseModel):
+    """Username or e-mail of the account to reset."""
+
+    identifier: str = Field(min_length=1, max_length=255)
+
+
+class PasswordResetRequestResponse(BaseModel):
+    detail: str
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
+    new_password: str = Field(min_length=6, max_length=200)
 
 
 # --- Person ---

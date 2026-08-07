@@ -17,28 +17,51 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_token(subject: str, expires_delta: timedelta, token_type: str) -> str:
+def create_token(
+    subject: str,
+    expires_delta: timedelta,
+    token_type: str,
+    *,
+    remember: bool = False,
+) -> str:
     settings = get_settings()
     expire = datetime.now(UTC) + expires_delta
-    payload: dict[str, Any] = {"sub": subject, "exp": expire, "type": token_type}
+    payload: dict[str, Any] = {
+        "sub": subject,
+        "exp": expire,
+        "type": token_type,
+        "remember": remember,
+    }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
-def create_access_token(subject: str) -> str:
+def create_access_token(subject: str, *, remember: bool = False) -> str:
     settings = get_settings()
+    minutes = (
+        settings.access_token_expire_minutes_remember
+        if remember
+        else settings.access_token_expire_minutes
+    )
     return create_token(
         subject,
-        timedelta(minutes=settings.access_token_expire_minutes),
+        timedelta(minutes=minutes),
         "access",
+        remember=remember,
     )
 
 
-def create_refresh_token(subject: str) -> str:
+def create_refresh_token(subject: str, *, remember: bool = False) -> str:
     settings = get_settings()
+    days = (
+        settings.refresh_token_expire_days_remember
+        if remember
+        else settings.refresh_token_expire_days
+    )
     return create_token(
         subject,
-        timedelta(days=settings.refresh_token_expire_days),
+        timedelta(days=days),
         "refresh",
+        remember=remember,
     )
 
 
@@ -56,3 +79,13 @@ def get_subject(token: str, expected_type: str) -> str | None:
         return str(subject) if subject is not None else None
     except JWTError:
         return None
+
+
+def get_remember_flag(token: str, expected_type: str) -> bool:
+    try:
+        payload = decode_token(token)
+        if payload.get("type") != expected_type:
+            return False
+        return bool(payload.get("remember", False))
+    except JWTError:
+        return False

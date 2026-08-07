@@ -12,6 +12,7 @@ import {
   ListItemIcon,
   ListItemText,
   ListSubheader,
+  Stack,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -30,6 +31,7 @@ import GroupsIcon from '@mui/icons-material/GroupsOutlined'
 import CategoryIcon from '@mui/icons-material/CategoryOutlined'
 import LabelIcon from '@mui/icons-material/LabelOutlined'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccountsOutlined'
+import AccountCircleIcon from '@mui/icons-material/AccountCircleOutlined'
 import StorageIcon from '@mui/icons-material/StorageOutlined'
 import EmailIcon from '@mui/icons-material/EmailOutlined'
 import DarkModeIcon from '@mui/icons-material/DarkModeOutlined'
@@ -137,6 +139,11 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
       })
     }
 
+    sections.push({
+      title: 'Konto',
+      items: [{ label: 'Mein Konto', to: '/konto', icon: <AccountCircleIcon /> }],
+    })
+
     return sections
   }, [isAuthenticated, user])
 
@@ -208,14 +215,26 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
       <Divider />
       <Box sx={{ p: 2, pt: 1.5 }}>
         {isAuthenticated ? (
-          <Button
-            fullWidth
-            variant="outlined"
-            startIcon={<LogoutIcon />}
-            onClick={logout}
-          >
-            Abmelden ({user?.username})
-          </Button>
+          <Stack spacing={1}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<AccountCircleIcon />}
+              component={RouterLink}
+              to="/konto"
+              onClick={() => setMobileOpen(false)}
+            >
+              Mein Konto
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<LogoutIcon />}
+              onClick={logout}
+            >
+              Abmelden ({user?.username})
+            </Button>
+          </Stack>
         ) : (
           <Button
             fullWidth

@@ -7,6 +7,7 @@ from app.core.security import hash_password
 from app.db.session import get_db
 from app.models import Person, User, UserRole
 from app.schemas import UserCreate, UserRead, UserUpdate
+from app.services.email_validation import require_valid_email
 
 router = APIRouter(prefix="/users", tags=["Benutzer"])
 
@@ -35,6 +36,13 @@ def _resolve_person_id(db: Session, person_id: int | None) -> int | None:
     return person.id
 
 
+def _parse_email(value: str | None) -> str | None:
+    try:
+        return require_valid_email(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.get("", response_model=list[UserRead])
 def list_users(
     db: Session = Depends(get_db),
@@ -52,7 +60,7 @@ def create_user(
     user = User(
         username=payload.username.strip(),
         password_hash=hash_password(payload.password),
-        email=(payload.email.strip() if payload.email else None),
+        email=_parse_email(payload.email),
         role=_parse_role(payload.role),
         is_active=payload.is_active,
         person_id=_resolve_person_id(db, payload.person_id),
@@ -96,7 +104,7 @@ def update_user(
     if "password" in data and data["password"]:
         user.password_hash = hash_password(data["password"])
     if "email" in data:
-        user.email = data["email"].strip() if data["email"] else None
+        user.email = _parse_email(data["email"])
     if "role" in data:
         user.role = new_role
     if "is_active" in data:

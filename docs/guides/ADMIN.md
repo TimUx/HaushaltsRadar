@@ -20,12 +20,15 @@ In `.env` mindestens setzen:
 | `BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD` | Erster Admin – **nicht** `admin`/`admin` belassen |
 | `POSTGRES_*` | Starke DB-Passwörter |
 | `CORS_ORIGINS` | Erlaubte Frontend-Origins (inkl. deiner öffentlichen URL) |
+| `FRONTEND_PUBLIC_URL` | Öffentliche Frontend-URL für Passwort-Reset-Links (sonst erste CORS-Origin) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` / `REFRESH_TOKEN_EXPIRE_DAYS` | Kurze Sitzung ohne „Angemeldet bleiben“ |
+| `ACCESS_TOKEN_EXPIRE_MINUTES_REMEMBER` / `REFRESH_TOKEN_EXPIRE_DAYS_REMEMBER` | Längere Sitzung mit „Angemeldet bleiben“ |
 | `SEED_SAMPLE_DATA` | `false` in Produktion, sofern keine Demo-Daten gewünscht |
 
 Start mit vorgebauten GHCR-Images:
 
 ```bash
-export HAUSHALTSRADAR_VERSION=1.1.2   # ohne führendes v, oder latest
+export HAUSHALTSRADAR_VERSION=1.1.3   # ohne führendes v, oder latest
 docker compose up -d
 ```
 
@@ -56,6 +59,8 @@ Nach dem Start erreichst du die Anmeldung unter dem Frontend-Port:
 
 Es muss immer mindestens ein aktiver Admin existieren; die App verhindert das Deaktivieren/Herabstufen des letzten Admins.
 
+Jeder angemeldete Benutzer (inkl. Viewer) kann unter **Mein Konto** eigene E-Mail und Passwort ändern – ohne Admin-Rechte für andere Nutzer.
+
 ## E-Mail / SMTP-Erinnerungen
 
 Pfad: **Administration → E-Mail / SMTP**
@@ -68,8 +73,9 @@ Pfad: **Administration → E-Mail / SMTP**
 - Täglicher Job um 07:00 (Europe/Berlin); manuell: „Erinnerungen jetzt prüfen“
 - Empfänger: Benutzer-E-Mail (wenn Person verknüpft), sonst Personen-E-Mail; bei Partei-Zuordnung alle Personen der Partei
 - Ohne Zuordnung oder ohne Empfänger-Adresse: Versand an die Default-E-Mail
+- Ist SMTP aktiv und vollständig, erscheint auf der Login-Seite **Passwort vergessen?** (zeitlich begrenzter, einmaliger Reset-Link per E-Mail)
 
-E-Mail-Adressen pflegen unter **Benutzer** und **Personen**. Am Vertrag **Vertragsbeginn** und **Anfangslaufzeit** (oder manuelles Vertragsende) sowie **Kündigungsfrist** setzen. Bei Auto-Verlängerung optional **Verlängerungslaufzeit** und **Kündigungsfrist nach Verlängerung** – Erinnerungen nutzen dann die aktuelle Periode und Frist.
+E-Mail-Adressen pflegen unter **Mein Konto**, **Benutzer** und **Personen**. Am Vertrag **Vertragsbeginn** und **Anfangslaufzeit** (oder manuelles Vertragsende) sowie **Kündigungsfrist** setzen. Bei Auto-Verlängerung optional **Verlängerungslaufzeit** und **Kündigungsfrist nach Verlängerung** – Erinnerungen nutzen dann die aktuelle Periode und Frist.
 
 ## Benutzerverwaltung
 
@@ -77,7 +83,7 @@ Pfad: **Administration → Benutzer**
 
 - Benutzer anlegen, Rolle setzen, aktivieren/deaktivieren
 - Optional: Benutzer mit einer **Person** verknüpfen → der User kann **Meine Finanzen** nutzen
-- Passwörter nur über die Admin-UI bzw. API setzen (kein Klartext in der DB)
+- Passwörter über die Admin-UI, per API oder vom Nutzer selbst unter **Mein Konto** setzen (kein Klartext in der DB)
 
 ![Benutzerverwaltung](../screenshots/guides/admin-benutzer.png)
 
@@ -145,7 +151,8 @@ Migrationen laufen über Alembic beim Backend-Start bzw. manuell (`alembic upgra
 - [ ] `SEED_SAMPLE_DATA=false` in Produktion
 - [ ] PostgreSQL nicht ungeschützt im Internet
 - [ ] HTTPS vor die App legen
-- [ ] `CORS_ORIGINS` auf echte Frontends beschränken
+- [ ] `CORS_ORIGINS` / `FRONTEND_PUBLIC_URL` auf echte Frontends beschränken
+- [ ] SMTP nur mit vertrauenswürdigem Relay; Passwort-Reset nur bei aktivem SMTP
 - [ ] Regelmäßige JSON-Backups (Download oder Cron gegen die Export-API)
 - [ ] Viewer-Accounts für reine Leserechte nutzen
 

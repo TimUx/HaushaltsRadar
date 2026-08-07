@@ -8,11 +8,25 @@ Kurzanleitung für den Alltag mit HaushaltsRadar. Für Installation und Benutzer
 
 1. Öffne die App (Standard: http://localhost:3080).
 2. Melde dich mit deinem Benutzernamen und Passwort an.
-3. Nach dem Login landest du auf dem **Dashboard**.
+3. Optional **Angemeldet bleiben** aktivieren – dann bleibt die Sitzung länger gültig.
+4. Nach dem Login landest du auf dem **Dashboard**.
+
+Wenn der Administrator SMTP eingerichtet hat, erscheint auf der Anmeldeseite **Passwort vergessen?** – damit kannst du per E-Mail einen Reset-Link anfordern.
 
 ![Anmeldeseite](../screenshots/guides/user-login.png)
 
 Rollen: **viewer** (nur lesen), **user** (Daten pflegen), **admin** (zusätzlich Verwaltung). Die Menüpunkte richten sich nach deiner Rolle.
+
+### Mein Konto
+
+Unter **Konto → Mein Konto** (auch über die Schaltfläche unten in der Navigation) kannst du unabhängig von deiner Rolle deine eigenen Daten ändern:
+
+- Benutzername und E-Mail
+- Passwort (dazu musst du dein aktuelles Passwort bestätigen)
+
+Rolle und Personenzuordnung („Meine Finanzen“) ändert nur der Administrator.
+
+![Mein Konto](../screenshots/guides/user-konto.png)
 
 ## Dashboard
 
