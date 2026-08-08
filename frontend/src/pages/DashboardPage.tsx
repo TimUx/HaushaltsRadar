@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   FormControl,
   Grid,
@@ -18,6 +19,7 @@ import {
   TableHead,
   TableRow,
   Typography,
+  useMediaQuery,
   useTheme,
 } from '@mui/material'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdfOutlined'
@@ -28,6 +30,11 @@ import { formatCurrency } from '../utils/format'
 import { exportDashboardPdf } from '../utils/exportDashboardPdf'
 import { INTERVAL_LABELS } from '../api/types'
 import { MyFinancesButton } from '../components/MyFinancesButton'
+import {
+  MobileFilterSheet,
+  MobileFilterTrigger,
+  filterSheetControlSx,
+} from '../components/MobileFilterSheet'
 import { ResponsiveTable } from '../components/ResponsiveTable'
 import { useAuth } from '../auth/AuthContext'
 import { buildBarOption, buildPieOption } from '../charts'
@@ -88,6 +95,7 @@ type ShareFilter = '' | 'household' | `person:${number}` | `party:${number}`
 
 export function DashboardPage() {
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const currentYear = new Date().getFullYear()
@@ -96,6 +104,7 @@ export function DashboardPage() {
   const [shareFilter, setShareFilter] = useState<ShareFilter>('')
   const [categoryId, setCategoryId] = useState<number | ''>('')
   const [tagId, setTagId] = useState<number | ''>('')
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
 
   const myPersonFilter: ShareFilter | null =
     user?.person_id != null ? `person:${user.person_id}` : null
@@ -161,6 +170,30 @@ export function DashboardPage() {
     filters.categoryId != null ||
     filters.tagId != null
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.objectId != null) count += 1
+    if (filters.categoryId != null) count += 1
+    if (filters.tagId != null) count += 1
+    if (filters.household || filters.personId != null || filters.partyId != null) count += 1
+    if (year !== currentYear) count += 1
+    return count
+  }, [filters, year, currentYear])
+
+  function clearDimensionFilters() {
+    setObjectId('')
+    setShareFilter('')
+    setCategoryId('')
+    setTagId('')
+    const next = new URLSearchParams(searchParams)
+    next.delete('meine')
+    setSearchParams(next, { replace: true })
+  }
+
+  function resetAllFilters() {
+    clearDimensionFilters()
+    setYear(currentYear)
+  }
   const filterHint = useMemo(() => {
     const parts: string[] = []
     if (filters.objectId != null) {
@@ -255,20 +288,181 @@ export function DashboardPage() {
 
   return (
     <Stack spacing={3}>
-      <Box
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 1.5,
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
+      <Box>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 1.5,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Typography variant="h4" component="h1" sx={{ mr: 'auto', lineHeight: 1.2 }}>
+            {year}
+          </Typography>
+
+          {isMobile ? (
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <MobileFilterTrigger
+                activeCount={activeFilterCount}
+                onClick={() => setFilterSheetOpen(true)}
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={exportingPdf ? <CircularProgress size={14} /> : <PictureAsPdfIcon />}
+                onClick={() => void handleExportPdf()}
+                disabled={exportingPdf}
+              >
+                {exportingPdf ? 'PDF…' : 'PDF'}
+              </Button>
+            </Stack>
+          ) : (
+            <Box sx={{ ...filterBarSx, justifyContent: 'flex-end', flex: 1, width: 'auto' }}>
+              <FormControl size="small" sx={filterControlSx}>
+                <InputLabel>Jahr</InputLabel>
+                <Select
+                  label="Jahr"
+                  value={String(year)}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                >
+                  {yearOptions.map((y) => (
+                    <MenuItem key={y} value={String(y)}>
+                      {y}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={filterControlSx}>
+                <InputLabel>Objekt</InputLabel>
+                <Select
+                  label="Objekt"
+                  value={objectId === '' ? '' : String(objectId)}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setObjectId(value === '' ? '' : Number(value))
+                  }}
+                >
+                  <MenuItem value="">Alle</MenuItem>
+                  {(filterOptions?.objects || []).map((obj) => (
+                    <MenuItem key={obj.id} value={String(obj.id)}>
+                      {obj.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={filterControlSx}>
+                <InputLabel>Kategorie</InputLabel>
+                <Select
+                  label="Kategorie"
+                  value={categoryId === '' ? '' : String(categoryId)}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setCategoryId(value === '' ? '' : Number(value))
+                  }}
+                >
+                  <MenuItem value="">Alle</MenuItem>
+                  {(filterOptions?.categories || []).map((cat) => (
+                    <MenuItem key={cat.id} value={String(cat.id)}>
+                      {cat.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={filterControlSx}>
+                <InputLabel>Tag</InputLabel>
+                <Select
+                  label="Tag"
+                  value={tagId === '' ? '' : String(tagId)}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setTagId(value === '' ? '' : Number(value))
+                  }}
+                >
+                  <MenuItem value="">Alle</MenuItem>
+                  {(filterOptions?.tags || []).map((tag) => (
+                    <MenuItem key={tag.id} value={String(tag.id)}>
+                      {tag.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={filterControlSx}>
+                <InputLabel>Anteil</InputLabel>
+                <Select
+                  label="Anteil"
+                  value={shareFilter}
+                  onChange={(e) => setShareFilter(e.target.value as ShareFilter)}
+                >
+                  <MenuItem value="">Alle</MenuItem>
+                  <MenuItem value="household">Haushalt</MenuItem>
+                  {(filterOptions?.parties || []).map((party) => (
+                    <MenuItem key={`party-${party.id}`} value={`party:${party.id}`}>
+                      {party.name}
+                    </MenuItem>
+                  ))}
+                  {(filterOptions?.persons || []).map((person) => (
+                    <MenuItem key={`person-${person.id}`} value={`person:${person.id}`}>
+                      {person.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <MyFinancesButton
+                active={myFinancesActive}
+                onToggle={() => setMyFinances(!myFinancesActive)}
+              />
+              {hasFilter && (
+                <Button size="small" onClick={clearDimensionFilters}>
+                  Filter zurücksetzen
+                </Button>
+              )}
+              {year !== currentYear && (
+                <Button size="small" onClick={() => setYear(currentYear)}>
+                  Aktuelles Jahr
+                </Button>
+              )}
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={exportingPdf ? <CircularProgress size={14} /> : <PictureAsPdfIcon />}
+                onClick={() => void handleExportPdf()}
+                disabled={exportingPdf}
+              >
+                {exportingPdf ? 'PDF…' : 'PDF'}
+              </Button>
+            </Box>
+          )}
+        </Box>
+
+        {isMobile && (hasFilter || year !== currentYear) && (
+          <Chip
+            size="small"
+            label={
+              year !== currentYear && filterHint
+                ? `${year} · ${filterHint}`
+                : year !== currentYear
+                  ? `Jahr ${year}`
+                  : filterHint
+            }
+            onDelete={resetAllFilters}
+            sx={{ mt: 1.25, maxWidth: '100%' }}
+          />
+        )}
+        {!isMobile && hasFilter && filterHint && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            {filterHint}
+          </Typography>
+        )}
+      </Box>
+
+      <MobileFilterSheet
+        open={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        onReset={activeFilterCount > 0 ? resetAllFilters : undefined}
       >
-        <Typography variant="h4" component="h1" sx={{ mr: 'auto', lineHeight: 1.2 }}>
-          {year}
-        </Typography>
-        <Box sx={{ ...filterBarSx, justifyContent: { xs: 'stretch', sm: 'flex-end' }, flex: 1 }}>
-        <FormControl size="small" sx={filterControlSx}>
+        <FormControl size="small" sx={filterSheetControlSx}>
           <InputLabel>Jahr</InputLabel>
           <Select
             label="Jahr"
@@ -282,7 +476,7 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={filterControlSx}>
+        <FormControl size="small" sx={filterSheetControlSx}>
           <InputLabel>Objekt</InputLabel>
           <Select
             label="Objekt"
@@ -300,7 +494,7 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={filterControlSx}>
+        <FormControl size="small" sx={filterSheetControlSx}>
           <InputLabel>Kategorie</InputLabel>
           <Select
             label="Kategorie"
@@ -318,7 +512,7 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={filterControlSx}>
+        <FormControl size="small" sx={filterSheetControlSx}>
           <InputLabel>Tag</InputLabel>
           <Select
             label="Tag"
@@ -336,7 +530,7 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={filterControlSx}>
+        <FormControl size="small" sx={filterSheetControlSx}>
           <InputLabel>Anteil</InputLabel>
           <Select
             label="Anteil"
@@ -357,47 +551,19 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
-        <MyFinancesButton
-          active={myFinancesActive}
-          onToggle={() => setMyFinances(!myFinancesActive)}
-        />
-        {hasFilter && (
-          <Button
-            size="small"
-            onClick={() => {
-              setObjectId('')
-              setShareFilter('')
-              setCategoryId('')
-              setTagId('')
-              const next = new URLSearchParams(searchParams)
-              next.delete('meine')
-              setSearchParams(next, { replace: true })
-            }}
-          >
-            Filter zurücksetzen
-          </Button>
-        )}
+        <Box sx={{ '& > .MuiButton-root, & > span': { width: '100%' }, '& .MuiButton-root': { width: '100%' } }}>
+          <MyFinancesButton
+            size="medium"
+            active={myFinancesActive}
+            onToggle={() => setMyFinances(!myFinancesActive)}
+          />
+        </Box>
         {year !== currentYear && (
-          <Button size="small" onClick={() => setYear(currentYear)}>
+          <Button size="medium" onClick={() => setYear(currentYear)}>
             Aktuelles Jahr
           </Button>
         )}
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={exportingPdf ? <CircularProgress size={14} /> : <PictureAsPdfIcon />}
-          onClick={() => void handleExportPdf()}
-          disabled={exportingPdf}
-        >
-          {exportingPdf ? 'PDF…' : 'PDF'}
-        </Button>
-        {hasFilter && filterHint && (
-          <Typography variant="caption" color="text.secondary">
-            {filterHint}
-          </Typography>
-        )}
-        </Box>
-      </Box>
+      </MobileFilterSheet>
 
       <Stack spacing={2.5}>
         <KpiSection title="Monat">
