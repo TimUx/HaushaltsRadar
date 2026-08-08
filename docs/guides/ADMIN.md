@@ -28,7 +28,7 @@ In `.env` mindestens setzen:
 Start mit vorgebauten GHCR-Images:
 
 ```bash
-export HAUSHALTSRADAR_VERSION=1.1.6   # ohne führendes v, oder latest
+export HAUSHALTSRADAR_VERSION=1.1.7   # ohne führendes v, oder latest
 docker compose up -d
 ```
 

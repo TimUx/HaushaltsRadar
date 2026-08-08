@@ -1,7 +1,7 @@
 # Standard deployment with prebuilt GHCR images.
 # Usage:
 #   cp .env.example .env
-#   export HAUSHALTSRADAR_VERSION=1.1.6   # or latest
+#   export HAUSHALTSRADAR_VERSION=1.1.7   # or latest
 #   docker compose up -d
 #
 # Optional local images:
