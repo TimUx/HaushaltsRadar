@@ -1,11 +1,29 @@
 import { createTheme, type ThemeOptions } from '@mui/material/styles'
 
+const mobileUp = '@media (max-width:599.95px)'
+
 const shared: ThemeOptions = {
   typography: {
     fontFamily: '"IBM Plex Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    h4: { fontWeight: 600, letterSpacing: '-0.02em' },
-    h5: { fontWeight: 600 },
-    h6: { fontWeight: 600 },
+    h4: {
+      fontWeight: 600,
+      letterSpacing: '-0.02em',
+      [mobileUp]: { fontSize: '1.65rem' },
+    },
+    h5: {
+      fontWeight: 600,
+      [mobileUp]: { fontSize: '1.45rem' },
+    },
+    h6: {
+      fontWeight: 600,
+      [mobileUp]: { fontSize: '1.2rem' },
+    },
+    body1: {
+      [mobileUp]: { fontSize: '1rem' },
+    },
+    body2: {
+      [mobileUp]: { fontSize: '0.9375rem' },
+    },
     button: { textTransform: 'none', fontWeight: 500 },
   },
   shape: { borderRadius: 6 },
@@ -14,6 +32,10 @@ const shared: ThemeOptions = {
       styleOverrides: {
         body: {
           backgroundImage: 'none',
+          [mobileUp]: {
+            // Slightly larger root type on phones for denser MUI layouts
+            fontSize: 16,
+          },
         },
       },
     },
@@ -37,6 +59,70 @@ const shared: ThemeOptions = {
     },
     MuiButton: {
       defaultProps: { disableElevation: true },
+      styleOverrides: {
+        root: {
+          [mobileUp]: {
+            minHeight: 40,
+          },
+        },
+        sizeSmall: {
+          [mobileUp]: {
+            minHeight: 36,
+            fontSize: '0.875rem',
+          },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          [mobileUp]: {
+            padding: 10,
+          },
+        },
+        sizeSmall: {
+          [mobileUp]: {
+            padding: 8,
+          },
+        },
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          // ≥16px prevents iOS Safari zooming into focused inputs
+          [mobileUp]: { fontSize: '1rem' },
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          [mobileUp]: {
+            fontSize: '0.9375rem',
+            paddingTop: 12,
+            paddingBottom: 12,
+          },
+        },
+        sizeSmall: {
+          [mobileUp]: {
+            fontSize: '0.9375rem',
+            paddingTop: 10,
+            paddingBottom: 10,
+          },
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          [mobileUp]: {
+            minHeight: 48,
+            paddingTop: 10,
+            paddingBottom: 10,
+          },
+        },
+      },
     },
     MuiAppBar: {
       defaultProps: { elevation: 0, color: 'default' },

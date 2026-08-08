@@ -16,7 +16,6 @@ import {
   Select,
   Stack,
   Switch,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -28,6 +27,7 @@ import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import { contractsApi, costItemsApi, partiesApi, personsApi } from '../api'
 import type { Contract, CostItem } from '../api/types'
+import { ResponsiveTable } from '../components/ResponsiveTable'
 import {
   AllocationEditor,
   allocationTotal,
@@ -263,7 +263,7 @@ export function ContractsPage() {
       {isLoading ? (
         <Typography color="text.secondary">Laden…</Typography>
       ) : (
-        <Table size="small">
+        <ResponsiveTable>
           <TableHead>
             <TableRow>
               <TableCell>Anbieter</TableCell>
@@ -302,7 +302,7 @@ export function ContractsPage() {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </ResponsiveTable>
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">

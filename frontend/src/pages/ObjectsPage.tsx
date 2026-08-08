@@ -16,7 +16,6 @@ import {
   Select,
   Stack,
   Switch,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -28,6 +27,7 @@ import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import { objectsApi, partiesApi, personsApi } from '../api'
 import type { ObjectEntity } from '../api/types'
+import { ResponsiveTable } from '../components/ResponsiveTable'
 
 export function ObjectsPage() {
   const queryClient = useQueryClient()
@@ -134,7 +134,7 @@ export function ObjectsPage() {
       {isLoading ? (
         <Typography color="text.secondary">Laden…</Typography>
       ) : (
-        <Table size="small">
+        <ResponsiveTable>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
@@ -168,7 +168,7 @@ export function ObjectsPage() {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </ResponsiveTable>
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">

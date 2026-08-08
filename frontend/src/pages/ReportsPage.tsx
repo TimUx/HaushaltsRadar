@@ -14,7 +14,6 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -26,11 +25,11 @@ import { analyticsApi, reportsApi, type PeriodType } from '../api'
 import { formatCurrency } from '../utils/format'
 import { exportPeriodReportPdf } from '../utils/exportPeriodReportPdf'
 import { MyFinancesButton } from '../components/MyFinancesButton'
+import { ResponsiveTable } from '../components/ResponsiveTable'
+import { filterBarSx, filterControlSx } from '../theme/responsiveSx'
 import { useAuth } from '../auth/AuthContext'
 
 type ShareFilter = '' | 'household' | `person:${number}` | `party:${number}`
-
-const selectSx = { minWidth: 140, maxWidth: 180 }
 
 const PERIOD_OPTIONS: { id: PeriodType; label: string }[] = [
   { id: 'month', label: 'Monat' },
@@ -194,8 +193,8 @@ export function ReportsPage() {
         Periodenbericht mit Ausgaben, Einnahmen und Aufschlüsselungen für Archiv und Auswertung.
       </Typography>
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
-        <FormControl size="small" sx={selectSx}>
+      <Box sx={{ ...filterBarSx, justifyContent: { xs: 'stretch', sm: 'flex-start' } }}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Periode</InputLabel>
           <Select
             label="Periode"
@@ -210,7 +209,7 @@ export function ReportsPage() {
           </Select>
         </FormControl>
         {periodType !== 'custom' && (
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Jahr</InputLabel>
             <Select label="Jahr" value={String(year)} onChange={(e) => setYear(Number(e.target.value))}>
               {yearOptions.map((y) => (
@@ -222,7 +221,7 @@ export function ReportsPage() {
           </FormControl>
         )}
         {periodType === 'month' && (
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Monat</InputLabel>
             <Select label="Monat" value={String(month)} onChange={(e) => setMonth(Number(e.target.value))}>
               {MONTH_OPTIONS.map((name, idx) => (
@@ -234,7 +233,7 @@ export function ReportsPage() {
           </FormControl>
         )}
         {periodType === 'quarter' && (
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Quartal</InputLabel>
             <Select
               label="Quartal"
@@ -250,7 +249,7 @@ export function ReportsPage() {
           </FormControl>
         )}
         {periodType === 'half' && (
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Halbjahr</InputLabel>
             <Select label="Halbjahr" value={String(half)} onChange={(e) => setHalf(Number(e.target.value))}>
               <MenuItem value="1">1. Halbjahr</MenuItem>
@@ -278,7 +277,7 @@ export function ReportsPage() {
             />
           </>
         )}
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Objekt</InputLabel>
           <Select
             label="Objekt"
@@ -293,7 +292,7 @@ export function ReportsPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Kategorie</InputLabel>
           <Select
             label="Kategorie"
@@ -308,7 +307,7 @@ export function ReportsPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Tag</InputLabel>
           <Select
             label="Tag"
@@ -323,7 +322,7 @@ export function ReportsPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Anteil</InputLabel>
           <Select
             label="Anteil"
@@ -380,16 +379,16 @@ export function ReportsPage() {
                 Positionen
               </Typography>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 6, sm: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <Kpi label="Ausgaben" value={formatCurrency(reportQuery.data.summary.expense_total)} />
                 </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <Kpi label="Einnahmen" value={formatCurrency(reportQuery.data.summary.income_total)} />
                 </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <Kpi label="Netto" value={formatCurrency(reportQuery.data.summary.net_total)} />
                 </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <Kpi
                     label="Einmalig"
                     value={formatCurrency(reportQuery.data.summary.one_time_expense)}
@@ -404,7 +403,7 @@ export function ReportsPage() {
               <Typography variant="h6" gutterBottom>
                 Nach Kategorie
               </Typography>
-              <Table size="small">
+              <ResponsiveTable>
                 <TableHead>
                   <TableRow>
                     <TableCell>Kategorie</TableCell>
@@ -424,7 +423,7 @@ export function ReportsPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+              </ResponsiveTable>
             </CardContent>
           </Card>
         </Stack>

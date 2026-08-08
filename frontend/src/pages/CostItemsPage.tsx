@@ -24,7 +24,6 @@ import {
   Select,
   Stack,
   Switch,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -56,6 +55,7 @@ import {
 import { MyFinancesButton } from '../components/MyFinancesButton'
 import { useAuth } from '../auth/AuthContext'
 import { costItemBelongsToPerson } from '../utils/myFinances'
+import { ResponsiveTable } from '../components/ResponsiveTable'
 
 const INTERVALS = Object.keys(INTERVAL_LABELS) as PaymentInterval[]
 const ENTRY_TYPES = Object.keys(ENTRY_TYPE_LABELS) as EntryType[]
@@ -397,7 +397,7 @@ export function CostItemsPage() {
       {isLoading ? (
         <Typography color="text.secondary">Laden…</Typography>
       ) : (
-        <Table size="small">
+        <ResponsiveTable>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
@@ -470,7 +470,7 @@ export function CostItemsPage() {
               )
             })}
           </TableBody>
-        </Table>
+        </ResponsiveTable>
       )}
 
       <Dialog open={Boolean(permanentTarget)} onClose={() => setPermanentTarget(null)}>
@@ -725,7 +725,7 @@ export function CostItemsPage() {
                     Jeder Eintrag gilt ab dem Datum bis zur nächsten Änderung — so bleiben
                     frühere Jahre in Dashboard und Historie korrekt.
                   </Typography>
-                  <Table size="small">
+                  <ResponsiveTable edgeToEdge={false}>
                     <TableHead>
                       <TableRow>
                         <TableCell>Gültig ab</TableCell>
@@ -763,7 +763,7 @@ export function CostItemsPage() {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                  </ResponsiveTable>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'flex-start' }}>
                     <TextField
                       label="Betrag"

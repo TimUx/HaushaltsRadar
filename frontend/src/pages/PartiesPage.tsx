@@ -12,7 +12,6 @@ import {
   IconButton,
   Stack,
   Switch,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -24,6 +23,7 @@ import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import { partiesApi } from '../api'
 import type { Party } from '../api/types'
+import { ResponsiveTable } from '../components/ResponsiveTable'
 
 export function PartiesPage() {
   const queryClient = useQueryClient()
@@ -103,7 +103,7 @@ export function PartiesPage() {
       {isLoading ? (
         <Typography color="text.secondary">Laden…</Typography>
       ) : (
-        <Table size="small">
+        <ResponsiveTable>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
@@ -133,7 +133,7 @@ export function PartiesPage() {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </ResponsiveTable>
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">

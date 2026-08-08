@@ -10,7 +10,6 @@ import {
   DialogTitle,
   IconButton,
   Stack,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -22,6 +21,7 @@ import EditIcon from '@mui/icons-material/EditOutlined'
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import { categoriesApi } from '../api'
 import type { Category } from '../api/types'
+import { ResponsiveTable } from '../components/ResponsiveTable'
 
 export function CategoriesPage() {
   const queryClient = useQueryClient()
@@ -107,7 +107,7 @@ export function CategoriesPage() {
       {isLoading ? (
         <Typography color="text.secondary">Laden…</Typography>
       ) : (
-        <Table size="small">
+        <ResponsiveTable>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
@@ -135,7 +135,7 @@ export function CategoriesPage() {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </ResponsiveTable>
       )}
 
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
