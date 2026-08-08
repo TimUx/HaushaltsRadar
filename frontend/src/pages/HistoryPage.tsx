@@ -13,7 +13,6 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -26,16 +25,11 @@ import { useSearchParams } from 'react-router-dom'
 import { analyticsApi } from '../api'
 import { formatCurrency } from '../utils/format'
 import { MyFinancesButton } from '../components/MyFinancesButton'
+import { ResponsiveTable } from '../components/ResponsiveTable'
+import { filterControlSx } from '../theme/responsiveSx'
 import { useAuth } from '../auth/AuthContext'
 
 type ShareFilter = '' | 'household' | `person:${number}` | `party:${number}`
-
-const selectSx = {
-  minWidth: 140,
-  maxWidth: 180,
-  '& .MuiInputBase-root': { fontSize: 13 },
-  '& .MuiInputLabel-root': { fontSize: 13 },
-}
 
 const EVENT_LABELS: Record<string, string> = {
   created: 'Hinzugefügt',
@@ -235,7 +229,7 @@ export function HistoryPage() {
           justifyContent: 'flex-end',
         }}
       >
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Zeitraum</InputLabel>
           <Select
             label="Zeitraum"
@@ -248,7 +242,7 @@ export function HistoryPage() {
             <MenuItem value="36">36 Monate</MenuItem>
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Prognose</InputLabel>
           <Select
             label="Prognose"
@@ -261,7 +255,7 @@ export function HistoryPage() {
             <MenuItem value="12">12 Monate</MenuItem>
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Objekt</InputLabel>
           <Select
             label="Objekt"
@@ -276,7 +270,7 @@ export function HistoryPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Kategorie</InputLabel>
           <Select
             label="Kategorie"
@@ -291,7 +285,7 @@ export function HistoryPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Tag</InputLabel>
           <Select
             label="Tag"
@@ -306,7 +300,7 @@ export function HistoryPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Anteil</InputLabel>
           <Select
             label="Anteil"
@@ -397,7 +391,7 @@ export function HistoryPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Neue, angepasste und entfernte Posten im gewählten Zeitraum.
           </Typography>
-          <Table size="small">
+          <ResponsiveTable>
             <TableHead>
               <TableRow>
                 <TableCell>Datum</TableCell>
@@ -425,7 +419,7 @@ export function HistoryPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+          </ResponsiveTable>
         </CardContent>
       </Card>
     </Stack>

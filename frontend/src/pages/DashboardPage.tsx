@@ -13,7 +13,6 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -29,8 +28,10 @@ import { formatCurrency } from '../utils/format'
 import { exportDashboardPdf } from '../utils/exportDashboardPdf'
 import { INTERVAL_LABELS } from '../api/types'
 import { MyFinancesButton } from '../components/MyFinancesButton'
+import { ResponsiveTable } from '../components/ResponsiveTable'
 import { useAuth } from '../auth/AuthContext'
 import { buildBarOption, buildPieOption } from '../charts'
+import { filterBarSx, filterControlSx } from '../theme/responsiveSx'
 
 function KpiPanel({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -48,7 +49,10 @@ function KpiPanel({ label, value, hint }: { label: string; value: string; hint?:
         <Typography variant="body2" color="text.secondary">
           {label}
         </Typography>
-        <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: '-0.02em' }}>
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 600, letterSpacing: '-0.02em', fontSize: { xs: '1.5rem', sm: undefined } }}
+        >
           {value}
         </Typography>
         {hint ? (
@@ -81,13 +85,6 @@ function KpiSection({ title, children }: { title: string; children: ReactNode })
 }
 
 type ShareFilter = '' | 'household' | `person:${number}` | `party:${number}`
-
-const selectSx = {
-  minWidth: 140,
-  maxWidth: 180,
-  '& .MuiInputBase-root': { fontSize: 13 },
-  '& .MuiInputLabel-root': { fontSize: 13 },
-}
 
 export function DashboardPage() {
   const theme = useTheme()
@@ -270,16 +267,8 @@ export function DashboardPage() {
         <Typography variant="h4" component="h1" sx={{ mr: 'auto', lineHeight: 1.2 }}>
           {year}
         </Typography>
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 1,
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-          }}
-        >
-        <FormControl size="small" sx={selectSx}>
+        <Box sx={{ ...filterBarSx, justifyContent: { xs: 'stretch', sm: 'flex-end' }, flex: 1 }}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Jahr</InputLabel>
           <Select
             label="Jahr"
@@ -293,7 +282,7 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Objekt</InputLabel>
           <Select
             label="Objekt"
@@ -311,7 +300,7 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Kategorie</InputLabel>
           <Select
             label="Kategorie"
@@ -329,7 +318,7 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Tag</InputLabel>
           <Select
             label="Tag"
@@ -347,7 +336,7 @@ export function DashboardPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={selectSx}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Anteil</InputLabel>
           <Select
             label="Anteil"
@@ -539,7 +528,7 @@ export function DashboardPage() {
                   <ReactECharts option={partyOption} style={{ height: 260 }} notMerge />
                 </Grid>
                 <Grid size={{ xs: 12, md: 5 }}>
-                  <Table size="small">
+                  <ResponsiveTable>
                     <TableHead>
                       <TableRow>
                         <TableCell>Partei</TableCell>
@@ -560,7 +549,7 @@ export function DashboardPage() {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                  </ResponsiveTable>
                 </Grid>
               </Grid>
             )}
@@ -573,7 +562,7 @@ export function DashboardPage() {
           <Typography variant="h6" gutterBottom>
             Fälligkeiten
           </Typography>
-          <Table size="small">
+          <ResponsiveTable>
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
@@ -597,7 +586,7 @@ export function DashboardPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+          </ResponsiveTable>
         </CardContent>
       </Card>
     </Stack>

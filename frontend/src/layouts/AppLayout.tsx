@@ -174,7 +174,7 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
           <Box key={section.title}>
             {index > 0 && <Divider sx={{ mx: 1.5, my: 0.5 }} />}
             <List
-              dense
+              dense={!isMobile}
               subheader={
                 <ListSubheader
                   component="div"
@@ -182,7 +182,7 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
                   sx={{
                     bgcolor: 'transparent',
                     lineHeight: 2.2,
-                    fontSize: 11,
+                    fontSize: { xs: 12, md: 11 },
                     fontWeight: 600,
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
@@ -202,10 +202,15 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
                   to={item.to}
                   selected={location.pathname === item.to}
                   onClick={() => setMobileOpen(false)}
-                  sx={{ borderRadius: 1, mb: 0.25 }}
+                  sx={{ borderRadius: 1, mb: 0.25, py: { xs: 1.25, md: 0.75 } }}
                 >
-                  <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} />
+                  <ListItemIcon sx={{ minWidth: { xs: 44, md: 40 } }}>{item.icon}</ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{
+                      primary: { sx: { fontSize: { xs: '1rem', md: undefined } } },
+                    }}
+                  />
                 </ListItemButton>
               ))}
             </List>
@@ -284,13 +289,22 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1, fontSize: { xs: '1.15rem', sm: undefined } }}>
             {pageTitle}
           </Typography>
           {isAuthenticated && (
-            <Box sx={{ mr: 1, display: { xs: 'none', sm: 'block' } }}>
-              <MyFinancesButton active={myFinancesActive} onToggle={toggleMyFinances} />
-            </Box>
+            <>
+              <Box sx={{ mr: 0.5, display: { xs: 'block', sm: 'none' } }}>
+                <MyFinancesButton
+                  active={myFinancesActive}
+                  onToggle={toggleMyFinances}
+                  iconOnly
+                />
+              </Box>
+              <Box sx={{ mr: 1, display: { xs: 'none', sm: 'block' } }}>
+                <MyFinancesButton active={myFinancesActive} onToggle={toggleMyFinances} />
+              </Box>
+            </>
           )}
           <IconButton onClick={onToggleMode} aria-label="Theme umschalten">
             {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
@@ -327,9 +341,11 @@ export function AppLayout({ mode, onToggleMode }: AppLayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, md: 3 },
+          p: { xs: 2, sm: 2.5, md: 3 },
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           mt: 8,
+          maxWidth: '100%',
+          overflowX: 'hidden',
         }}
       >
         <Outlet />

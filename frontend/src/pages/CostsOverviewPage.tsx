@@ -11,8 +11,10 @@ import {
   MenuItem,
   Select,
   Stack,
+  useMediaQuery,
 } from '@mui/material'
-import { DataGrid, type GridColDef } from '@mui/x-data-grid'
+import { useTheme } from '@mui/material/styles'
+import { DataGrid, type GridColDef, type GridColumnVisibilityModel } from '@mui/x-data-grid'
 import { deDE } from '@mui/x-data-grid/locales'
 import { useSearchParams } from 'react-router-dom'
 import { analyticsApi } from '../api'
@@ -21,18 +23,46 @@ import { formatCurrency } from '../utils/format'
 import { MyFinancesButton } from '../components/MyFinancesButton'
 import { useAuth } from '../auth/AuthContext'
 import { overviewRowBelongsToPerson } from '../utils/myFinances'
+import { filterBarSx, filterControlSx } from '../theme/responsiveSx'
 
 function moneyValue(value: string | number | null | undefined): number {
   if (value == null) return 0
   return typeof value === 'string' ? Number(value) : value
 }
 
+const MOBILE_HIDDEN_COLUMNS = [
+  'object_party',
+  'object_person',
+  'allocations',
+  'contract_partner',
+  'contract_provider',
+  'contract_number',
+  'contract_notice_days',
+  'contract_auto_renewal',
+  'contract_start',
+  'contract_end',
+  'start_date',
+  'end_date',
+  'description',
+  'notes',
+  'currency',
+  'tags',
+  'yearly_amount',
+] as const
+
+function mobileVisibilityModel(): GridColumnVisibilityModel {
+  return Object.fromEntries(MOBILE_HIDDEN_COLUMNS.map((field) => [field, false]))
+}
+
 export function CostsOverviewPage() {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [categoryId, setCategoryId] = useState<number | ''>('')
   const [tagId, setTagId] = useState<number | ''>('')
   const [entryType, setEntryType] = useState<'' | 'expense' | 'income'>('')
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState<GridColumnVisibilityModel>({})
 
   const myFinances = searchParams.get('meine') === '1' && user?.person_id != null
 
@@ -66,10 +96,15 @@ export function CostsOverviewPage() {
 
   const hasFilter = categoryId !== '' || tagId !== '' || entryType !== '' || myFinances
 
+  const effectiveVisibility = useMemo(() => {
+    if (!isMobile) return columnVisibilityModel
+    return { ...mobileVisibilityModel(), ...columnVisibilityModel }
+  }, [isMobile, columnVisibilityModel])
+
   const columns = useMemo<GridColDef<CostOverviewRow>[]>(
     () => [
-      { field: 'name', headerName: 'Posten', flex: 1.2, minWidth: 160 },
-      { field: 'entry_type_label', headerName: 'Art', width: 110 },
+      { field: 'name', headerName: 'Posten', flex: 1.2, minWidth: isMobile ? 140 : 160 },
+      { field: 'entry_type_label', headerName: 'Art', width: isMobile ? 100 : 110 },
       { field: 'category', headerName: 'Kategorie', flex: 0.8, minWidth: 120 },
       { field: 'tags', headerName: 'Tags', flex: 1, minWidth: 140 },
       { field: 'object', headerName: 'Objekt', flex: 0.8, minWidth: 120 },
@@ -127,7 +162,7 @@ export function CostsOverviewPage() {
       { field: 'notes', headerName: 'Notizen', flex: 1, minWidth: 140 },
       { field: 'currency', headerName: 'Währung', width: 90 },
     ],
-    [],
+    [isMobile],
   )
 
   if (isLoading) {
@@ -143,9 +178,9 @@ export function CostsOverviewPage() {
   }
 
   return (
-    <Stack spacing={1.5} sx={{ height: { xs: 600, md: 'calc(100vh - 140px)' } }}>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'flex-end' }}>
-        <FormControl size="small" sx={{ minWidth: 140 }}>
+    <Stack spacing={1.5} sx={{ height: { xs: 'calc(100dvh - 120px)', md: 'calc(100vh - 140px)' } }}>
+      <Box sx={{ ...filterBarSx, justifyContent: { xs: 'stretch', sm: 'flex-end' } }}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Art</InputLabel>
           <Select
             label="Art"
@@ -157,7 +192,7 @@ export function CostsOverviewPage() {
             <MenuItem value="income">Einnahme</MenuItem>
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 150 }}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Kategorie</InputLabel>
           <Select
             label="Kategorie"
@@ -175,7 +210,7 @@ export function CostsOverviewPage() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 150 }}>
+        <FormControl size="small" sx={filterControlSx}>
           <InputLabel>Tag</InputLabel>
           <Select
             label="Tag"
@@ -208,14 +243,16 @@ export function CostsOverviewPage() {
           </Button>
         )}
       </Box>
-      <Card sx={{ flex: 1, minHeight: 0, p: 1 }}>
+      <Card sx={{ flex: 1, minHeight: 0, p: { xs: 0.5, sm: 1 } }}>
         <DataGrid
           rows={filteredRows}
           columns={columns}
+          columnVisibilityModel={effectiveVisibility}
+          onColumnVisibilityModelChange={setColumnVisibilityModel}
           disableRowSelectionOnClick
           pageSizeOptions={[25, 50, 100]}
           initialState={{
-            pagination: { paginationModel: { pageSize: 50, page: 0 } },
+            pagination: { paginationModel: { pageSize: isMobile ? 25 : 50, page: 0 } },
             sorting: { sortModel: [{ field: 'name', sort: 'asc' }] },
           }}
           filterMode="client"
@@ -227,7 +264,7 @@ export function CostsOverviewPage() {
             },
           }}
           localeText={deDE.components.MuiDataGrid.defaultProps.localeText}
-          density="compact"
+          density={isMobile ? 'standard' : 'compact'}
           sx={{
             border: 'none',
             height: '100%',
@@ -236,10 +273,10 @@ export function CostsOverviewPage() {
             },
             '& .MuiDataGrid-columnHeaderTitle': {
               fontWeight: 600,
-              fontSize: 12,
+              fontSize: { xs: 13, sm: 12 },
             },
             '& .MuiDataGrid-cell': {
-              fontSize: 13,
+              fontSize: { xs: 14, sm: 13 },
             },
           }}
         />

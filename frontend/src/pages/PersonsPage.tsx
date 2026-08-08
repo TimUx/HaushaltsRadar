@@ -16,7 +16,6 @@ import {
   Select,
   Stack,
   Switch,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -28,6 +27,7 @@ import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import EditIcon from '@mui/icons-material/EditOutlined'
 import { partiesApi, personsApi } from '../api'
 import type { Person } from '../api/types'
+import { ResponsiveTable } from '../components/ResponsiveTable'
 
 export function PersonsPage() {
   const queryClient = useQueryClient()
@@ -124,7 +124,7 @@ export function PersonsPage() {
       {isLoading ? (
         <Typography color="text.secondary">Laden…</Typography>
       ) : (
-        <Table size="small">
+        <ResponsiveTable>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
@@ -156,7 +156,7 @@ export function PersonsPage() {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </ResponsiveTable>
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">

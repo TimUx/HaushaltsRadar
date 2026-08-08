@@ -16,7 +16,6 @@ import {
   Select,
   Stack,
   Switch,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -29,6 +28,7 @@ import EditIcon from '@mui/icons-material/EditOutlined'
 import { personsApi, usersApi } from '../api'
 import { ROLE_LABELS, type User, type UserRole } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { ResponsiveTable } from '../components/ResponsiveTable'
 
 const ROLES = Object.keys(ROLE_LABELS) as UserRole[]
 
@@ -159,7 +159,7 @@ export function UsersPage() {
       {isLoading ? (
         <Typography color="text.secondary">Laden…</Typography>
       ) : (
-        <Table size="small">
+        <ResponsiveTable>
           <TableHead>
             <TableRow>
               <TableCell>Benutzername</TableCell>
@@ -197,7 +197,7 @@ export function UsersPage() {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </ResponsiveTable>
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">

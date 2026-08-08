@@ -12,7 +12,6 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -26,6 +25,8 @@ import ReactECharts from 'echarts-for-react'
 import { useSearchParams } from 'react-router-dom'
 import { analyticsApi, type BreakdownGroupBy } from '../api'
 import { MyFinancesButton } from '../components/MyFinancesButton'
+import { ResponsiveTable } from '../components/ResponsiveTable'
+import { filterControlSx } from '../theme/responsiveSx'
 import { useAuth } from '../auth/AuthContext'
 import { formatCurrency } from '../utils/format'
 import {
@@ -41,13 +42,6 @@ import {
 type ShareFilter = '' | 'household' | `person:${number}` | `party:${number}`
 type ChartType = 'verteilung' | 'vergleich' | 'verlauf' | 'hierarchie' | 'heatmap' | 'fluss'
 type HierarchyView = 'treemap' | 'sunburst'
-
-const selectSx = {
-  minWidth: 140,
-  maxWidth: 180,
-  '& .MuiInputBase-root': { fontSize: 13 },
-  '& .MuiInputLabel-root': { fontSize: 13 },
-}
 
 const CHART_TYPES: { id: ChartType; label: string }[] = [
   { id: 'verteilung', label: 'Verteilung' },
@@ -232,7 +226,7 @@ export function AnalysesPage() {
           Analysen
         </Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Jahr</InputLabel>
             <Select
               label="Jahr"
@@ -246,7 +240,7 @@ export function AnalysesPage() {
               ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Objekt</InputLabel>
             <Select
               label="Objekt"
@@ -261,7 +255,7 @@ export function AnalysesPage() {
               ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Kategorie</InputLabel>
             <Select
               label="Kategorie"
@@ -276,7 +270,7 @@ export function AnalysesPage() {
               ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Tag</InputLabel>
             <Select
               label="Tag"
@@ -291,7 +285,7 @@ export function AnalysesPage() {
               ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Anteil</InputLabel>
             <Select
               label="Anteil"
@@ -357,7 +351,7 @@ export function AnalysesPage() {
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
         {needsBreakdown && (
-          <FormControl size="small" sx={selectSx}>
+          <FormControl size="small" sx={filterControlSx}>
             <InputLabel>Dimension</InputLabel>
             <Select
               label="Dimension"
@@ -374,7 +368,7 @@ export function AnalysesPage() {
         )}
         {chartType === 'hierarchie' && (
           <>
-            <FormControl size="small" sx={selectSx}>
+            <FormControl size="small" sx={filterControlSx}>
               <InputLabel>Modus</InputLabel>
               <Select
                 label="Modus"
@@ -431,7 +425,7 @@ export function AnalysesPage() {
             <Typography variant="h6" gutterBottom>
               Daten
             </Typography>
-            <Table size="small">
+            <ResponsiveTable>
               <TableHead>
                 <TableRow>
                   <TableCell>Name</TableCell>
@@ -446,7 +440,7 @@ export function AnalysesPage() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </ResponsiveTable>
           </CardContent>
         </Card>
       )}
