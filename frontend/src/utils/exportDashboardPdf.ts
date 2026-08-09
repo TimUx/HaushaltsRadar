@@ -82,6 +82,8 @@ function chartSubtitle(doc: JsPdfWithAutoTable, title: string, x: number, y: num
 type ChartImage = { url: string; widthPx: number; heightPx: number }
 
 async function buildDashboardChartImages(data: DashboardSummary, includeParty: boolean) {
+  // Chart stays readable with the largest blocks; the PDF table lists all filtered blocks.
+  const topBlocksForChart = data.top_cost_blocks.slice(0, 10)
   const [category, topBlocks, party] = await Promise.all([
     data.costs_by_category.length > 0
       ? (async (): Promise<ChartImage> => {
@@ -94,12 +96,12 @@ async function buildDashboardChartImages(data: DashboardSummary, includeParty: b
           return { url, widthPx, heightPx }
         })()
       : Promise.resolve(null),
-    data.top_cost_blocks.length > 0
+    topBlocksForChart.length > 0
       ? (async (): Promise<ChartImage> => {
           const widthPx = 560
-          const heightPx = Math.max(300, data.top_cost_blocks.length * 36 + 48)
+          const heightPx = Math.max(300, topBlocksForChart.length * 36 + 48)
           const url = await renderChartPng(
-            buildBarOption(printTheme, data.top_cost_blocks, { horizontal: true }),
+            buildBarOption(printTheme, topBlocksForChart, { horizontal: true }),
             { width: widthPx, height: heightPx },
           )
           return { url, widthPx, heightPx }
@@ -387,63 +389,64 @@ export async function exportDashboardPdf(
     y = (doc.lastAutoTable?.finalY ?? y) + 7
   }
 
-  // Two compact side-by-side tables: top blocks + objects
-  y = ensureSpace(doc, y, 40)
-  const leftX = 14
-  const midGap = 6
-  const colWidth = (pageWidth - 28 - midGap) / 2
-  const rightX = leftX + colWidth + midGap
-  const startY = y
+  y = sectionTitle(doc, 'Kostenblöcke (monatlich)', y)
+  if (data.top_cost_blocks.length === 0) {
+    y = emptyNote(doc, 'Keine Einträge', y)
+  } else {
+    const blocksTotal = data.top_cost_blocks.reduce((sum, row) => sum + Number(row.amount), 0)
+    autoTable(doc, {
+      startY: y,
+      theme: 'striped',
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8 },
+      headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+      },
+      head: [['Position', 'Monatlich', 'Anteil']],
+      body: [
+        ...data.top_cost_blocks.map((row) => [
+          row.name,
+          money(row.amount),
+          pct(Number(row.amount), blocksTotal),
+        ]),
+        [
+          { content: 'Gesamt', styles: { fontStyle: 'bold' } },
+          { content: money(blocksTotal), styles: { fontStyle: 'bold', halign: 'right' } },
+          { content: '100 %', styles: { fontStyle: 'bold', halign: 'right' } },
+        ],
+      ],
+      margin: { left: 14, right: 14 },
+    })
+    y = (doc.lastAutoTable?.finalY ?? y) + 7
+  }
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(30, 45, 60)
-  doc.text('Größte Kostenblöcke', leftX, startY)
-  doc.text('Kosten je Objekt', rightX, startY)
-
-  const topBody =
-    data.top_cost_blocks.length === 0
-      ? [['Keine Einträge', '']]
-      : data.top_cost_blocks.map((row) => [row.name, money(row.amount)])
-  const objectBody =
-    data.costs_by_object.length === 0
-      ? [['Keine Einträge', '']]
-      : data.costs_by_object.map((row) => [row.name, money(row.amount)])
-
-  autoTable(doc, {
-    startY: startY + 3,
-    theme: 'striped',
-    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5 },
-    headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-    columnStyles: {
-      0: { cellWidth: colWidth * 0.62 },
-      1: { cellWidth: colWidth * 0.38, halign: 'right' },
-    },
-    head: [['Position', 'Betrag']],
-    body: topBody,
-    margin: { left: leftX, right: pageWidth - leftX - colWidth },
-    tableWidth: colWidth,
-  })
-  const leftFinalY = doc.lastAutoTable?.finalY ?? startY
-
-  autoTable(doc, {
-    startY: startY + 3,
-    theme: 'striped',
-    styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5 },
-    headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-    columnStyles: {
-      0: { cellWidth: colWidth * 0.62 },
-      1: { cellWidth: colWidth * 0.38, halign: 'right' },
-    },
-    head: [['Objekt', 'Monatlich']],
-    body: objectBody,
-    margin: { left: rightX, right: 14 },
-    tableWidth: colWidth,
-  })
-  const rightFinalY = doc.lastAutoTable?.finalY ?? startY
-  y = Math.max(leftFinalY, rightFinalY) + 8
+  y = sectionTitle(doc, 'Kosten je Objekt (monatlich)', y)
+  if (data.costs_by_object.length === 0) {
+    y = emptyNote(doc, 'Keine Einträge', y)
+  } else {
+    const objectTotal = data.costs_by_object.reduce((sum, row) => sum + Number(row.amount), 0)
+    autoTable(doc, {
+      startY: y,
+      theme: 'striped',
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8 },
+      headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+      },
+      head: [['Objekt', 'Monatlich', 'Anteil']],
+      body: data.costs_by_object.map((row) => [
+        row.name,
+        money(row.amount),
+        pct(Number(row.amount), objectTotal),
+      ]),
+      margin: { left: 14, right: 14 },
+    })
+    y = (doc.lastAutoTable?.finalY ?? y) + 7
+  }
 
   y = sectionTitle(doc, 'Fälligkeiten', y)
   if (data.upcoming_dues.length === 0) {

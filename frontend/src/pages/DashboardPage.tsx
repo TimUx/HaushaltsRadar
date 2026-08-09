@@ -282,7 +282,8 @@ export function DashboardPage() {
   }
 
   const categoryOption = buildPieOption(theme, data.costs_by_category)
-  const topBlocksOption = buildBarOption(theme, data.top_cost_blocks, { horizontal: true })
+  const topCostBlocks = data.top_cost_blocks.slice(0, 10)
+  const topBlocksOption = buildBarOption(theme, topCostBlocks, { horizontal: true })
   const partyOption = buildBarOption(theme, data.costs_by_party, { horizontal: false })
   const partyTotal = data.costs_by_party.reduce((sum, row) => sum + Number(row.amount), 0)
 
@@ -658,12 +659,12 @@ export function DashboardPage() {
               <Typography variant="h6" gutterBottom>
                 Größte Kostenblöcke
               </Typography>
-              {data.top_cost_blocks.length === 0 ? (
+              {topCostBlocks.length === 0 ? (
                 <Typography color="text.secondary">Keine Einträge</Typography>
               ) : (
                 <ReactECharts
                   option={topBlocksOption}
-                  style={{ height: Math.max(260, data.top_cost_blocks.length * 32 + 40) }}
+                  style={{ height: Math.max(260, topCostBlocks.length * 32 + 40) }}
                   notMerge
                 />
               )}
