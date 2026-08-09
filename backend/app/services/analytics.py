@@ -639,7 +639,7 @@ class AnalyticsService:
             ],
             top_cost_blocks=[
                 NamedAmount(id=iid, name=name, amount=amount.quantize(Decimal("0.01")))
-                for iid, name, amount in top_items[:10]
+                for iid, name, amount in top_items
             ],
             upcoming_dues=upcoming,
         )
