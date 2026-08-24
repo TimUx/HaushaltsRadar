@@ -13,7 +13,15 @@ from app.models import (
     PaymentInterval,
     PriceHistory,
 )
-from app.services.cost_history import _active_monthly_on, cost_history_timeline
+from app.services.cost_history import _active_monthly_on, cost_history_timeline, months_in_year
+
+
+def test_months_in_year_includes_next_year_projection():
+    today = date(2026, 8, 24)
+    assert months_in_year(2025, through=today) == [date(2025, m, 1) for m in range(1, 13)]
+    assert months_in_year(2026, through=today) == [date(2026, m, 1) for m in range(1, 9)]
+    assert months_in_year(2027, through=today) == [date(2027, m, 1) for m in range(1, 13)]
+    assert months_in_year(2028, through=today) == []
 
 
 def _history(

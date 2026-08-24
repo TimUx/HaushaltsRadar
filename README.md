@@ -14,7 +14,7 @@ HaushaltsRadar ist **kein** klassisches Haushaltsbuch und **keine** Banking-Soft
 
 | Bereich | Was du damit machst |
 |---------|---------------------|
-| **Dashboard** | Monatliche und hochgerechnete Jahres-KPIs (Ausgaben, Einnahmen, Netto), Kategorie- und Top-Kosten-Charts, Parteienvergleich, Fälligkeiten |
+| **Dashboard** | Monatliche und hochgerechnete Jahres-KPIs, Folgejahr-Vorschau, Kategorie- und Top-Kosten-Charts, Parteienvergleich, Fälligkeiten, PDF-Export |
 | **Analysen** | Verteilung, Vergleich, Verlauf, Hierarchie, Heatmap und Flussdiagramme – filterbar nach Objekt, Kategorie, Tag, Person, Partei |
 | **Berichte** | Periodenberichte (Monat, Quartal, Halbjahr, Jahr, Zeitraum) mit PDF-Export |
 | **Posten** | Ausgaben & Einnahmen, Intervalle (monatlich bis jährlich, einmalig, custom), Anteile, Tags, Objekte |
@@ -40,7 +40,7 @@ git clone https://github.com/TimUx/HaushaltsRadar.git
 cd HaushaltsRadar
 cp .env.example .env
 # SECRET_KEY und Bootstrap-Passwort in .env anpassen
-export HAUSHALTSRADAR_VERSION=1.1.9   # oder latest
+export HAUSHALTSRADAR_VERSION=1.1.10   # oder latest
 docker compose up -d
 ```
 

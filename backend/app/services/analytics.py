@@ -75,6 +75,7 @@ class AnalyticsService:
         tags = self.db.query(Tag).order_by(Tag.name).all()
         today = date.today()
         years = {today.year - offset for offset in range(0, 6)}
+        years.add(today.year + 1)  # Folgejahr-Vorschau (laufende Kosten + Einmaliges aus diesem Jahr)
         for (start,) in self.db.query(CostItem.start_date).filter(CostItem.start_date.isnot(None)):
             years.add(start.year)
         return {

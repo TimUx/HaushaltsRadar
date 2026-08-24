@@ -38,7 +38,9 @@ Das Dashboard zeigt den aktuellen Überblick:
 - Vergleich nach Parteien (falls angelegt)
 - Liste der nächsten **Fälligkeiten**
 
-Oben kannst du nach **Jahr**, **Objekt**, **Kategorie**, **Tag** und **Anteil** filtern. PDF exportiert die aktuelle Dashboard-Ansicht.
+Oben kannst du nach **Jahr**, **Objekt**, **Kategorie**, **Tag** und **Anteil** filtern. PDF exportiert die aktuelle Dashboard-Ansicht (Tabellen möglichst zusammenhängend; bei Seitenumbruch mit wiederholtem Kopf).
+
+Als **Jahr** kannst du auch das **Folgejahr (Vorschau)** wählen: bekannte laufende Kosten werden fortgeschrieben, Einmalzahlungen aus dem aktuellen Jahr fließen anteilig (über 12 Monate) ein.
 
 ![Dashboard](../screenshots/guides/user-dashboard.png)
 

@@ -154,8 +154,11 @@ export function DashboardPage() {
   const yearOptions = useMemo(() => {
     const years = new Set(filterOptions?.years || [])
     years.add(currentYear)
+    years.add(currentYear + 1) // Folgejahr-Vorschau
     return Array.from(years).sort((a, b) => b - a)
   }, [filterOptions, currentYear])
+
+  const isNextYearPreview = year === currentYear + 1
 
   const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ['dashboard', filters],
@@ -300,7 +303,7 @@ export function DashboardPage() {
           }}
         >
           <Typography variant="h4" component="h1" sx={{ mr: 'auto', lineHeight: 1.2 }}>
-            {year}
+            {isNextYearPreview ? `${year} · Vorschau` : year}
           </Typography>
 
           {isMobile ? (
@@ -330,7 +333,7 @@ export function DashboardPage() {
                 >
                   {yearOptions.map((y) => (
                     <MenuItem key={y} value={String(y)}>
-                      {y}
+                      {y === currentYear + 1 ? `${y} (Vorschau)` : y}
                     </MenuItem>
                   ))}
                 </Select>
@@ -472,7 +475,7 @@ export function DashboardPage() {
           >
             {yearOptions.map((y) => (
               <MenuItem key={y} value={String(y)}>
-                {y}
+                {y === currentYear + 1 ? `${y} (Vorschau)` : y}
               </MenuItem>
             ))}
           </Select>
@@ -579,7 +582,7 @@ export function DashboardPage() {
           </Grid>
         </KpiSection>
 
-        <KpiSection title="Jahr (hochgerechnet)">
+        <KpiSection title={isNextYearPreview ? 'Jahr (Prognose)' : 'Jahr (hochgerechnet)'}>
           <Grid size={{ xs: 12, sm: 4 }}>
             <KpiPanel label="Ausgaben" value={formatCurrency(data.yearly_fixed_costs)} />
           </Grid>
@@ -590,6 +593,13 @@ export function DashboardPage() {
             <KpiPanel label="Netto" value={formatCurrency(data.yearly_net)} />
           </Grid>
         </KpiSection>
+
+        {isNextYearPreview && (
+          <Alert severity="info" variant="outlined">
+            Vorschau für {year}: bekannte laufende Kosten fortgeschrieben; Einmalzahlungen aus{' '}
+            {currentYear} sind anteilig (über 12 Monate) eingerechnet.
+          </Alert>
+        )}
 
         {(Number(data.one_time_expense) > 0 ||
           Number(data.one_time_income) > 0 ||

@@ -1,6 +1,14 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatCurrency } from './format'
+import {
+  drawSectionTable,
+  ensureBlockFits,
+  ensureSpace,
+  estimateTableHeight,
+  sectionTitle,
+  type PdfDoc,
+} from './pdfLayout'
 
 export type PeriodReportData = {
   title: string
@@ -40,62 +48,33 @@ export type PeriodReportMeta = {
   tagName?: string | null
 }
 
-type JsPdfWithAutoTable = jsPDF & {
-  lastAutoTable?: { finalY: number }
-}
-
 function money(value: string | number): string {
   return formatCurrency(value)
 }
 
-function ensureSpace(doc: JsPdfWithAutoTable, y: number, needed: number): number {
-  const pageHeight = doc.internal.pageSize.getHeight()
-  if (y + needed > pageHeight - 14) {
-    doc.addPage()
-    return 16
-  }
-  return y
-}
-
-function sectionTitle(doc: JsPdfWithAutoTable, title: string, y: number): number {
-  y = ensureSpace(doc, y, 12)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(30, 45, 60)
-  doc.text(title, 14, y)
-  return y + 3
-}
-
 function namedTable(
-  doc: JsPdfWithAutoTable,
+  doc: PdfDoc,
   y: number,
   title: string,
   rows: { name: string; amount: string | number }[],
 ): number {
   if (!rows.length) return y
-  y = sectionTitle(doc, title, y)
-  autoTable(doc, {
-    startY: y,
-    theme: 'striped',
-    styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8 },
-    headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
+  return drawSectionTable(doc, y, title, {
+    head: [['Bezeichnung', 'Betrag']],
     columnStyles: {
       0: { cellWidth: 120 },
       1: { cellWidth: 50, halign: 'right' },
     },
-    head: [['Bezeichnung', 'Betrag']],
     body: rows.map((r) => [r.name, money(r.amount)]),
-    margin: { left: 14, right: 14 },
+    afterGap: 8,
   })
-  return (doc.lastAutoTable?.finalY ?? y) + 8
 }
 
 export function exportPeriodReportPdf(
   data: PeriodReportData,
   meta: PeriodReportMeta = {},
 ): void {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }) as JsPdfWithAutoTable
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }) as PdfDoc
   let y = 16
 
   doc.setFont('helvetica', 'bold')
@@ -137,18 +116,8 @@ export function exportPeriodReportPdf(
   }
 
   y += 10
-  y = sectionTitle(doc, 'Zusammenfassung', y)
-  autoTable(doc, {
-    startY: y,
-    theme: 'plain',
-    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2 },
-    columnStyles: {
-      0: { cellWidth: 45 },
-      1: { cellWidth: 45, halign: 'right', fontStyle: 'bold' },
-      2: { cellWidth: 45 },
-      3: { cellWidth: 45, halign: 'right', fontStyle: 'bold' },
-    },
-    body: [
+  {
+    const summaryBody = [
       ['Ausgaben', money(data.summary.expense_total), 'Einnahmen', money(data.summary.income_total)],
       ['Netto', money(data.summary.net_total), 'Positionen', String(data.summary.active_items)],
       [
@@ -157,29 +126,43 @@ export function exportPeriodReportPdf(
         'Erstattungen',
         money(data.summary.one_time_income),
       ],
-    ],
-    margin: { left: 14, right: 14 },
-  })
-  y = (doc.lastAutoTable?.finalY ?? y) + 8
+    ]
+    y = ensureBlockFits(doc, y, 11 + estimateTableHeight(summaryBody.length, { fontSize: 9, cellPadding: 2 }))
+    y = sectionTitle(doc, 'Zusammenfassung', y)
+    autoTable(doc, {
+      startY: y,
+      theme: 'plain',
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 2 },
+      columnStyles: {
+        0: { cellWidth: 45 },
+        1: { cellWidth: 45, halign: 'right', fontStyle: 'bold' },
+        2: { cellWidth: 45 },
+        3: { cellWidth: 45, halign: 'right', fontStyle: 'bold' },
+      },
+      body: summaryBody,
+      pageBreak: 'avoid',
+      margin: { left: 14, right: 14, top: 16, bottom: 14 },
+    })
+    y = (doc.lastAutoTable?.finalY ?? y) + 8
+  }
 
   if (data.comment) {
+    const lines = doc.splitTextToSize(data.comment, 180)
+    y = ensureBlockFits(doc, y, 11 + lines.length * 4.5 + 6)
     y = sectionTitle(doc, 'Kommentar', y)
-    y = ensureSpace(doc, y, 16)
+    y = ensureSpace(doc, y, 8)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
     doc.setTextColor(50, 50, 50)
-    const lines = doc.splitTextToSize(data.comment, 180)
     doc.text(lines, 14, y)
     y += lines.length * 4.5 + 6
   }
 
   if (data.monthly_series.length > 0) {
-    y = sectionTitle(doc, 'Monatsverlauf', y)
-    autoTable(doc, {
-      startY: y,
-      theme: 'striped',
-      styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.5 },
-      headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    y = drawSectionTable(doc, y, 'Monatsverlauf', {
+      fontSize: 8,
+      cellPadding: 1.5,
+      afterGap: 8,
       head: [['Monat', 'Ausgaben', 'Einnahmen', 'Netto']],
       body: data.monthly_series.map((row) => [
         row.label,
@@ -187,9 +170,7 @@ export function exportPeriodReportPdf(
         money(row.income),
         money(row.net),
       ]),
-      margin: { left: 14, right: 14 },
     })
-    y = (doc.lastAutoTable?.finalY ?? y) + 8
   }
 
   y = namedTable(doc, y, 'Nach Kategorie', data.by_category)
