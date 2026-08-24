@@ -88,7 +88,7 @@ Typische Felder:
 - **Kategorie / Unterkategorie**, Tags, Objekt
 - **Verteilung** (Anteile auf Haushalt, Personen oder Parteien)
 
-Wiederkehrende Beträge werden intern auf Monatsäquivalente umgerechnet. **Einmalige** Posten fließen in den Monat ihres Startdatums ein und erhöhen nicht die laufenden Fixkosten.
+Wiederkehrende Beträge werden intern auf Monatsäquivalente umgerechnet. **Einmalige** Posten fließen zu Abrechnungszwecken ins **Folgejahr**: Beträge mit Datum in Jahr Y werden gleichmäßig auf Januar–Dezember von Y+1 umgelegt (z. B. Stromnachzahlung 2026 → Monatskosten 2027) und zählen dann auch bei Objekt-/Personenfiltern mit. Die KPI „Einmalig“ zeigt die volle Summe im Jahr des Datums.
 
 ![Posten](../screenshots/guides/user-posten.png)
 

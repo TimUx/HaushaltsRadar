@@ -14,7 +14,11 @@ from app.models import (
     PriceHistory,
     Tag,
 )
-from app.services.amounts import amount_sign, is_one_time, monthly_amount
+from app.services.amounts import (
+    amount_sign,
+    is_one_time,
+    monthly_amount,
+)
 
 
 def _month_start(value: date) -> date:
@@ -164,9 +168,9 @@ def _active_monthly_on(
     if is_one_time(item):
         when = item.start_date
         if when is None:
-            created = item.created_at.date() if item.created_at else date.today()
-            when = created
-        if _month_start(when) != month:
+            when = item.created_at.date() if item.created_at else date.today()
+        # Abrechnung: Einmalkosten des Jahres Y fließen in Jan–Dez von Y+1.
+        if month.year != when.year + 1:
             return Decimal("0.00")
         if item.end_date and _month_start(item.end_date) < month:
             return Decimal("0.00")
@@ -181,8 +185,9 @@ def _active_monthly_on(
             # Ended before or in a prior month → no contribution; same-month end still counts
             if _month_start(applicable.valid_from) < month:
                 return Decimal("0.00")
-        amount = Decimal(applicable.amount) if applicable is not None else Decimal(item.amount)
-        return (amount * sign).quantize(Decimal("0.01"))
+        raw = Decimal(applicable.amount) if applicable is not None else Decimal(item.amount)
+        monthly = (raw / Decimal("12")).quantize(Decimal("0.01"))
+        return (monthly * sign).quantize(Decimal("0.01"))
 
     if item.start_date and _month_start(item.start_date) > month:
         return Decimal("0.00")

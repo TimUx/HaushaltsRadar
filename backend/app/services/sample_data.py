@@ -194,7 +194,7 @@ def seed_sample_data(db: Session) -> None:
             PriceHistory(
                 cost_item_id=nachzahlung.id,
                 amount=Decimal("218.40"),
-                monthly_amount=Decimal("0.00"),
+                monthly_amount=Decimal("18.20"),
                 valid_from=date(2026, 3, 15),
                 event_type=CostHistoryEvent.created,
                 notes="Einmalige Nachzahlung",
@@ -202,7 +202,7 @@ def seed_sample_data(db: Session) -> None:
             PriceHistory(
                 cost_item_id=erstattung.id,
                 amount=Decimal("42.50"),
-                monthly_amount=Decimal("0.00"),
+                monthly_amount=Decimal("3.54"),
                 valid_from=date(2026, 4, 10),
                 event_type=CostHistoryEvent.created,
                 notes="Einmalige Erstattung",

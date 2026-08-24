@@ -110,11 +110,11 @@ def test_recurring_income_is_negative():
     assert _active_monthly_on(item, date(2026, 1, 1), history) == Decimal("-50.00")
 
 
-def test_one_time_only_in_start_month():
+def test_one_time_amortized_in_following_calendar_year():
     item = CostItem(
         name="Nachzahlung",
         category_id=1,
-        amount=Decimal("100.00"),
+        amount=Decimal("120.00"),
         currency="EUR",
         entry_type=EntryType.expense,
         payment_interval=PaymentInterval.one_time,
@@ -124,15 +124,18 @@ def test_one_time_only_in_start_month():
     history = [
         _history(
             valid_from=date(2026, 7, 23),
-            amount="100.00",
-            monthly="100.00",
+            amount="120.00",
+            monthly="10.00",
             event_type=CostHistoryEvent.created,
         )
     ]
 
-    assert _active_monthly_on(item, date(2026, 6, 1), history) == Decimal("0.00")
-    assert _active_monthly_on(item, date(2026, 7, 1), history) == Decimal("100.00")
-    assert _active_monthly_on(item, date(2026, 8, 1), history) == Decimal("0.00")
+    # Ereignis 2026 → Umlage nur Jan–Dez 2027
+    assert _active_monthly_on(item, date(2026, 7, 1), history) == Decimal("0.00")
+    assert _active_monthly_on(item, date(2026, 12, 1), history) == Decimal("0.00")
+    assert _active_monthly_on(item, date(2027, 1, 1), history) == Decimal("10.00")
+    assert _active_monthly_on(item, date(2027, 12, 1), history) == Decimal("10.00")
+    assert _active_monthly_on(item, date(2028, 1, 1), history) == Decimal("0.00")
 
 
 def test_ended_stops_contribution():

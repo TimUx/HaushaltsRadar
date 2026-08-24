@@ -2,7 +2,16 @@ from datetime import date
 from decimal import Decimal
 
 from app.models import CostItem, EntryType, PaymentInterval
-from app.services.amounts import monthly_amount, one_time_amount_in_month, yearly_amount
+from app.services.amounts import (
+    amortized_one_time_in_month,
+    monthly_amount,
+    one_time_allocation_year,
+    one_time_amount_in_month,
+    one_time_overlaps_year,
+    one_time_starts_in_year,
+    one_time_window,
+    yearly_amount,
+)
 
 
 def _item(
@@ -46,9 +55,27 @@ def test_monthly_amount_custom():
     assert monthly_amount(_item("240.00", PaymentInterval.custom, custom=2)) == Decimal("120.00")
 
 
-def test_one_time_has_zero_monthly():
-    item = _item("218.40", PaymentInterval.one_time, start_date=date(2026, 3, 15))
-    assert monthly_amount(item) == Decimal("0.00")
-    assert yearly_amount(item) == Decimal("0.00")
-    assert one_time_amount_in_month(item, date(2026, 3, 1)) == Decimal("218.40")
-    assert one_time_amount_in_month(item, date(2026, 4, 1)) == Decimal("0.00")
+def test_one_time_amortized_in_following_calendar_year():
+    """Einmalkosten Jahr Y → gleichmäßig auf Jan–Dez von Y+1."""
+    item = _item("218.40", PaymentInterval.one_time, start_date=date(2026, 7, 1))
+    assert monthly_amount(item) == Decimal("18.20")
+    assert yearly_amount(item) == Decimal("218.40")
+    assert one_time_allocation_year(item) == 2027
+    assert one_time_window(item) == (date(2027, 1, 1), date(2027, 12, 1))
+
+    # Ereignisjahr 2026: kein Monatsanteil
+    assert amortized_one_time_in_month(item, date(2026, 7, 1)) == Decimal("0.00")
+    assert amortized_one_time_in_month(item, date(2026, 12, 1)) == Decimal("0.00")
+    # Folgejahr 2027: volles Kalenderjahr
+    assert amortized_one_time_in_month(item, date(2027, 1, 1)) == Decimal("18.20")
+    assert amortized_one_time_in_month(item, date(2027, 6, 1)) == Decimal("18.20")
+    assert amortized_one_time_in_month(item, date(2027, 12, 1)) == Decimal("18.20")
+    assert amortized_one_time_in_month(item, date(2028, 1, 1)) == Decimal("0.00")
+
+    assert one_time_overlaps_year(item, 2026) is False
+    assert one_time_overlaps_year(item, 2027) is True
+    assert one_time_starts_in_year(item, 2026) is True
+    assert one_time_starts_in_year(item, 2027) is False
+
+    assert one_time_amount_in_month(item, date(2026, 7, 1)) == Decimal("218.40")
+    assert one_time_amount_in_month(item, date(2027, 1, 1)) == Decimal("0.00")

@@ -123,7 +123,7 @@ def test_login_and_crud(client: TestClient):
         },
     )
     assert one_time.status_code == 201
-    assert one_time.json()["monthly_amount"] == "0.00"
+    assert one_time.json()["monthly_amount"] == "16.67"
 
     missing_date = client.post(
         "/api/v1/cost-items",
@@ -190,12 +190,49 @@ def test_login_and_crud(client: TestClient):
     assert by_object.json()["monthly_fixed_costs"] == "120.00"
     assert by_object.json()["monthly_income"] == "0.00"
 
+    # Assign one-time Nachzahlung to object → KPI in event year, monthly in Folgejahr
+    client.patch(
+        f"/api/v1/cost-items/{one_time.json()['id']}",
+        headers=headers,
+        json={"object_id": object_id},
+    )
+    by_object_event_year = client.get(
+        f"/api/v1/analytics/dashboard?year=2026&object_id={object_id}", headers=headers
+    )
+    assert by_object_event_year.status_code == 200
+    # Ereignisjahr: nur laufende Kosten; Einmalig-KPI = voller Betrag
+    assert by_object_event_year.json()["monthly_fixed_costs"] == "120.00"
+    assert by_object_event_year.json()["one_time_expense"] == "200.00"
+    assert all(
+        b["name"] != "Strom Nachzahlung"
+        for b in by_object_event_year.json()["top_cost_blocks"]
+    )
+
+    by_object_alloc_year = client.get(
+        f"/api/v1/analytics/dashboard?year=2027&object_id={object_id}", headers=headers
+    )
+    assert by_object_alloc_year.status_code == 200
+    # Folgejahr: 120 recurring + 200/12 = 16.67
+    assert by_object_alloc_year.json()["monthly_fixed_costs"] == "136.67"
+    assert by_object_alloc_year.json()["one_time_expense"] == "0.00"
+    assert any(
+        b["name"] == "Strom Nachzahlung"
+        for b in by_object_alloc_year.json()["top_cost_blocks"]
+    )
+    # Detach again so later object-only assertions stay on recurring Strom
+    client.patch(
+        f"/api/v1/cost-items/{one_time.json()['id']}",
+        headers=headers,
+        json={"object_id": None},
+    )
+
     by_person = client.get(
         f"/api/v1/analytics/dashboard?person_id={person_id}", headers=headers
     )
     assert by_person.status_code == 200
     assert by_person.json()["monthly_fixed_costs"] == "36.00"
 
+    # Current year (2026): one-time from 2026 not yet in monthly (erst 2027)
     by_household = client.get(
         "/api/v1/analytics/dashboard?household=true", headers=headers
     )
@@ -203,6 +240,13 @@ def test_login_and_crud(client: TestClient):
     assert by_household.json()["monthly_fixed_costs"] == "84.00"
     assert by_household.json()["monthly_income"] == "65.00"
     assert by_household.json()["monthly_net"] == "19.00"
+
+    by_household_2027 = client.get(
+        "/api/v1/analytics/dashboard?year=2027&household=true", headers=headers
+    )
+    assert by_household_2027.status_code == 200
+    # 84 recurring household share + 200/12 one-time (100% household)
+    assert by_household_2027.json()["monthly_fixed_costs"] == "100.67"
 
     full = client.get("/api/v1/analytics/dashboard", headers=headers)
     assert full.status_code == 200
@@ -212,6 +256,12 @@ def test_login_and_crud(client: TestClient):
     assert full.json()["yearly_fixed_costs"] == "1440.00"
     assert full.json()["yearly_income"] == "780.00"
     assert full.json()["yearly_net"] == "660.00"
+
+    full_2027 = client.get("/api/v1/analytics/dashboard?year=2027", headers=headers)
+    assert full_2027.status_code == 200
+    assert full_2027.json()["monthly_fixed_costs"] == "136.67"
+    assert full_2027.json()["monthly_income"] == "65.00"
+    assert full_2027.json()["monthly_net"] == "71.67"
 
     one_time_id = one_time.json()["id"]
     soft = client.delete(f"/api/v1/cost-items/{one_time_id}", headers=headers)
@@ -293,3 +343,13 @@ def test_login_and_crud(client: TestClient):
     assert year_2025.json()["year"] == 2025
     assert year_2025.json()["one_time_expense"] == "99.00"
     assert year_2025.json()["upcoming_dues"] == []
+    # Ereignisjahr 2025: Einmaliges noch nicht in Monatskosten (Umlage erst 2026)
+    assert year_2025.json()["monthly_fixed_costs"] == "100.00"
+
+    year_2026_with_past = client.get(
+        "/api/v1/analytics/dashboard?year=2026", headers=headers
+    )
+    assert year_2026_with_past.status_code == 200
+    # KPI „Einmalig“ nur im Ereignisjahr; Monatskosten im Folgejahr: 120 + 99/12
+    assert year_2026_with_past.json()["one_time_expense"] == "0.00"
+    assert year_2026_with_past.json()["monthly_fixed_costs"] == "128.25"
