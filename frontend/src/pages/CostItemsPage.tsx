@@ -434,9 +434,7 @@ export function CostItemsPage() {
                     {formatCurrency(item.amount, item.currency)}
                   </TableCell>
                   <TableCell align="right">
-                    {item.payment_interval === 'one_time'
-                      ? '–'
-                      : formatCurrency(item.monthly_amount, item.currency)}
+                    {formatCurrency(item.monthly_amount, item.currency)}
                   </TableCell>
                   <TableCell align="right">
                     <Tooltip title="Bearbeiten">

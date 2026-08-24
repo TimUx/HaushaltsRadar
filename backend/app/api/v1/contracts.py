@@ -135,7 +135,9 @@ def create_price_history(
         if item.payment_interval.value == "custom":
             months = Decimal(item.custom_interval_months or 1)
         if item.payment_interval.value == "one_time":
-            data["monthly_amount"] = Decimal("0.00")
+            data["monthly_amount"] = (Decimal(data["amount"]) / Decimal("12")).quantize(
+                Decimal("0.01")
+            )
         else:
             data["monthly_amount"] = (Decimal(data["amount"]) / months).quantize(Decimal("0.01"))
     entry = PriceHistory(**data)

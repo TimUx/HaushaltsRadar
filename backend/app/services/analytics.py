@@ -17,7 +17,14 @@ from app.models import (
     Tag,
 )
 from app.schemas import DashboardSummary, NamedAmount, UpcomingDue
-from app.services.amounts import is_income, is_one_time, monthly_amount, yearly_amount
+from app.services.amounts import (
+    is_income,
+    is_one_time,
+    monthly_amount,
+    one_time_raw_amount,
+    one_time_starts_in_year,
+    yearly_amount,
+)
 from app.services.cost_history import (
     ensure_item_history,
     months_in_year,
@@ -505,22 +512,33 @@ class AnalyticsService:
                     continue
                 contributed = True
                 if is_one_time(item):
-                    if is_income(item):
-                        one_time_income += amount
-                    else:
-                        one_time_expense += amount
-                elif is_income(item):
+                    # Amortized portions belong in monthly KPIs, not YTD fixed/income.
+                    continue
+                if is_income(item):
                     yearly_income += amount
                 else:
                     yearly_fixed += amount
+
+            if is_one_time(item) and one_time_starts_in_year(item, selected_year):
+                full = (one_time_raw_amount(item, history) * factor).quantize(
+                    Decimal("0.01")
+                )
+                if full != 0:
+                    contributed = True
+                    if is_income(item):
+                        one_time_income += full
+                    else:
+                        one_time_expense += full
 
             if not contributed:
                 continue
 
             included_ids.add(item.id)
 
-            if is_one_time(item) or is_income(item):
+            if is_income(item):
                 continue
+
+            # Monthly snapshot amount (recurring at reference month, or amortized one-time).
             ref_amount = (
                 unsigned_contribution_in_month(item, reference_month, history) * factor
             ).quantize(Decimal("0.01"))
@@ -530,7 +548,8 @@ class AnalyticsService:
             top_items.append((item.id, item.name, ref_amount))
             add_breakdown(item, ref_amount)
 
-        # Monthly KPIs = snapshot of the reference month (current/last month of year)
+        # Monthly KPIs = snapshot of the reference month (incl. amortized one-time
+        # from the previous calendar year, allocated across Jan–Dec).
         monthly_fixed = Decimal("0.00")
         monthly_income_snap = Decimal("0.00")
         for item in items:
@@ -541,7 +560,7 @@ class AnalyticsService:
                 household=household,
                 person_party=person_party,
             )
-            if factor is None or is_one_time(item):
+            if factor is None:
                 continue
             history = sorted(item.price_history, key=lambda h: (h.valid_from, h.id))
             amount = (
@@ -714,14 +733,15 @@ class AnalyticsService:
         items: list[CostItem],
         *,
         reference_month: date,
+        selected_year: int,
         person_id: int | None,
         party_id: int | None,
         household: bool,
         person_party: dict[int, int | None],
     ):
-        """Yield (item, amount) for recurring expenses in the reference month."""
+        """Yield (item, amount) for expenses in the monthly snapshot (incl. amortized one-time)."""
         for item in items:
-            if is_one_time(item) or is_income(item):
+            if is_income(item):
                 continue
             factor = self._share_factor(
                 item,
@@ -755,7 +775,7 @@ class AnalyticsService:
         if group_by not in BREAKDOWN_GROUPS:
             raise ValueError(f"Ungültiges group_by. Erlaubt: {', '.join(sorted(BREAKDOWN_GROUPS))}")
         self._validate_share_filters(person_id=person_id, party_id=party_id, household=household)
-        _, _, reference_month = self._resolve_year(year)
+        selected_year, _, reference_month = self._resolve_year(year)
         items = self._load_items_for_charts(
             object_id=object_id, category_id=category_id, tag_id=tag_id
         )
@@ -768,6 +788,7 @@ class AnalyticsService:
         for item, amount in self._iter_expense_snapshots(
             items,
             reference_month=reference_month,
+            selected_year=selected_year,
             person_id=person_id,
             party_id=party_id,
             household=household,
@@ -855,7 +876,7 @@ class AnalyticsService:
         if mode not in HIERARCHY_MODES:
             raise ValueError(f"Ungültiger mode. Erlaubt: {', '.join(sorted(HIERARCHY_MODES))}")
         self._validate_share_filters(person_id=person_id, party_id=party_id, household=household)
-        _, _, reference_month = self._resolve_year(year)
+        selected_year, _, reference_month = self._resolve_year(year)
         items = self._load_items_for_charts(
             object_id=object_id, category_id=category_id, tag_id=tag_id
         )
@@ -866,6 +887,7 @@ class AnalyticsService:
             for item, amount in self._iter_expense_snapshots(
                 items,
                 reference_month=reference_month,
+                selected_year=selected_year,
                 person_id=person_id,
                 party_id=party_id,
                 household=household,
@@ -911,6 +933,7 @@ class AnalyticsService:
         for item, amount in self._iter_expense_snapshots(
             items,
             reference_month=reference_month,
+            selected_year=selected_year,
             person_id=person_id,
             party_id=party_id,
             household=household,
@@ -988,7 +1011,7 @@ class AnalyticsService:
         cat_totals: dict[str, list[Decimal]] = {}
 
         for item in items:
-            if is_one_time(item) or is_income(item):
+            if is_income(item):
                 continue
             factor = self._share_factor(
                 item,
@@ -1043,7 +1066,7 @@ class AnalyticsService:
     ) -> dict:
         """Sankey: allocation source → category."""
         self._validate_share_filters(person_id=person_id, party_id=party_id, household=household)
-        _, _, reference_month = self._resolve_year(year)
+        selected_year, _, reference_month = self._resolve_year(year)
         items = self._load_items_for_charts(
             object_id=object_id, category_id=category_id, tag_id=tag_id
         )
@@ -1056,6 +1079,7 @@ class AnalyticsService:
         for item, amount in self._iter_expense_snapshots(
             items,
             reference_month=reference_month,
+            selected_year=selected_year,
             person_id=person_id,
             party_id=party_id,
             household=household,
