@@ -5,6 +5,14 @@ import type { DashboardSummary } from '../api/types'
 import { INTERVAL_LABELS } from '../api/types'
 import { buildBarOption, buildPieOption } from '../charts'
 import { formatCurrency } from './format'
+import {
+  drawSectionTable,
+  emptyNote,
+  ensureBlockFits,
+  ensureSpace,
+  sectionTitle,
+  type PdfDoc,
+} from './pdfLayout'
 import { renderChartPng } from './renderChartPng'
 
 export type DashboardPdfFilters = {
@@ -14,10 +22,6 @@ export type DashboardPdfFilters = {
   categoryName?: string | null
   tagName?: string | null
   includePartyComparison?: boolean
-}
-
-type JsPdfWithAutoTable = jsPDF & {
-  lastAutoTable?: { finalY: number }
 }
 
 /** Light theme so charts stay readable when printed / viewed in PDF. */
@@ -45,34 +49,7 @@ function filenameStamp(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
-function ensureSpace(doc: JsPdfWithAutoTable, y: number, needed: number): number {
-  const pageHeight = doc.internal.pageSize.getHeight()
-  if (y + needed > pageHeight - 14) {
-    doc.addPage()
-    return 16
-  }
-  return y
-}
-
-function sectionTitle(doc: JsPdfWithAutoTable, title: string, y: number): number {
-  y = ensureSpace(doc, y, 12)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(30, 45, 60)
-  doc.text(title, 14, y)
-  return y + 3
-}
-
-function emptyNote(doc: JsPdfWithAutoTable, text: string, y: number): number {
-  y = ensureSpace(doc, y, 8)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(110, 110, 110)
-  doc.text(text, 14, y)
-  return y + 6
-}
-
-function chartSubtitle(doc: JsPdfWithAutoTable, title: string, x: number, y: number): void {
+function chartSubtitle(doc: PdfDoc, title: string, x: number, y: number): void {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
   doc.setTextColor(30, 45, 60)
@@ -124,7 +101,7 @@ async function buildDashboardChartImages(data: DashboardSummary, includeParty: b
 }
 
 function addChartImage(
-  doc: JsPdfWithAutoTable,
+  doc: PdfDoc,
   image: { url: string; widthPx: number; heightPx: number },
   x: number,
   y: number,
@@ -149,7 +126,7 @@ export async function exportDashboardPdf(
   const includeParty = filters.includePartyComparison !== false
   const charts = await buildDashboardChartImages(data, includeParty)
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }) as JsPdfWithAutoTable
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }) as PdfDoc
   const pageWidth = doc.internal.pageSize.getWidth()
   let y = 16
 
@@ -251,7 +228,9 @@ export async function exportDashboardPdf(
         String(data.active_cost_items),
       ],
     ],
-    margin: { left: 14, right: 14 },
+    showHead: 'everyPage',
+    pageBreak: 'avoid',
+    margin: { left: 14, right: 14, top: 16, bottom: 14 },
   })
   y = (doc.lastAutoTable?.finalY ?? y) + 8
 
@@ -308,18 +287,12 @@ export async function exportDashboardPdf(
 
   const partyTotal = data.costs_by_party.reduce((sum, row) => sum + Number(row.amount), 0)
   if (includeParty && data.costs_by_party.length > 0) {
-    y = sectionTitle(doc, 'Vergleich Parteien (monatlich)', y)
-    autoTable(doc, {
-      startY: y,
-      theme: 'striped',
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8 },
-      headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+    y = drawSectionTable(doc, y, 'Vergleich Parteien (monatlich)', {
+      head: [['Partei', 'Monatlich', 'Anteil']],
       columnStyles: {
         1: { halign: 'right' },
         2: { halign: 'right' },
       },
-      head: [['Partei', 'Monatlich', 'Anteil']],
       body: [
         ...data.costs_by_party.map((row) => [
           row.name,
@@ -332,79 +305,61 @@ export async function exportDashboardPdf(
           { content: '100 %', styles: { fontStyle: 'bold', halign: 'right' } },
         ],
       ],
-      margin: { left: 14, right: 14 },
     })
-    y = (doc.lastAutoTable?.finalY ?? y) + 7
   }
 
-  y = sectionTitle(doc, 'Kosten nach Kategorie (monatlich)', y)
   if (data.costs_by_category.length === 0) {
+    y = ensureBlockFits(doc, y, 11 + 8)
+    y = sectionTitle(doc, 'Kosten nach Kategorie (monatlich)', y)
     y = emptyNote(doc, 'Keine Daten für diesen Filter.', y)
   } else {
     const categoryTotal = data.costs_by_category.reduce((sum, row) => sum + Number(row.amount), 0)
-    autoTable(doc, {
-      startY: y,
-      theme: 'striped',
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8 },
-      headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+    y = drawSectionTable(doc, y, 'Kosten nach Kategorie (monatlich)', {
+      head: [['Kategorie', 'Monatlich', 'Anteil']],
       columnStyles: {
         1: { halign: 'right' },
         2: { halign: 'right' },
       },
-      head: [['Kategorie', 'Monatlich', 'Anteil']],
       body: data.costs_by_category.map((row) => [
         row.name,
         money(row.amount),
         pct(Number(row.amount), categoryTotal),
       ]),
-      margin: { left: 14, right: 14 },
     })
-    y = (doc.lastAutoTable?.finalY ?? y) + 7
   }
 
-  y = sectionTitle(doc, 'Kosten je Person / Haushalt (monatlich)', y)
   if (data.costs_by_person.length === 0) {
+    y = ensureBlockFits(doc, y, 11 + 8)
+    y = sectionTitle(doc, 'Kosten je Person / Haushalt (monatlich)', y)
     y = emptyNote(doc, 'Keine Daten für diesen Filter.', y)
   } else {
     const personTotal = data.costs_by_person.reduce((sum, row) => sum + Number(row.amount), 0)
-    autoTable(doc, {
-      startY: y,
-      theme: 'striped',
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8 },
-      headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+    y = drawSectionTable(doc, y, 'Kosten je Person / Haushalt (monatlich)', {
+      head: [['Person / Haushalt', 'Monatlich', 'Anteil']],
       columnStyles: {
         1: { halign: 'right' },
         2: { halign: 'right' },
       },
-      head: [['Person / Haushalt', 'Monatlich', 'Anteil']],
       body: data.costs_by_person.map((row) => [
         row.name,
         money(row.amount),
         pct(Number(row.amount), personTotal),
       ]),
-      margin: { left: 14, right: 14 },
     })
-    y = (doc.lastAutoTable?.finalY ?? y) + 7
   }
 
-  y = sectionTitle(doc, 'Kostenblöcke (monatlich)', y)
   if (data.top_cost_blocks.length === 0) {
+    y = ensureBlockFits(doc, y, 11 + 8)
+    y = sectionTitle(doc, 'Kostenblöcke (monatlich)', y)
     y = emptyNote(doc, 'Keine Einträge', y)
   } else {
     const blocksTotal = data.top_cost_blocks.reduce((sum, row) => sum + Number(row.amount), 0)
-    autoTable(doc, {
-      startY: y,
-      theme: 'striped',
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8 },
-      headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+    y = drawSectionTable(doc, y, 'Kostenblöcke (monatlich)', {
+      head: [['Position', 'Monatlich', 'Anteil']],
       columnStyles: {
         1: { halign: 'right' },
         2: { halign: 'right' },
       },
-      head: [['Position', 'Monatlich', 'Anteil']],
       body: [
         ...data.top_cost_blocks.map((row) => [
           row.name,
@@ -417,60 +372,49 @@ export async function exportDashboardPdf(
           { content: '100 %', styles: { fontStyle: 'bold', halign: 'right' } },
         ],
       ],
-      margin: { left: 14, right: 14 },
     })
-    y = (doc.lastAutoTable?.finalY ?? y) + 7
   }
 
-  y = sectionTitle(doc, 'Kosten je Objekt (monatlich)', y)
   if (data.costs_by_object.length === 0) {
+    y = ensureBlockFits(doc, y, 11 + 8)
+    y = sectionTitle(doc, 'Kosten je Objekt (monatlich)', y)
     y = emptyNote(doc, 'Keine Einträge', y)
   } else {
     const objectTotal = data.costs_by_object.reduce((sum, row) => sum + Number(row.amount), 0)
-    autoTable(doc, {
-      startY: y,
-      theme: 'striped',
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8 },
-      headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+    y = drawSectionTable(doc, y, 'Kosten je Objekt (monatlich)', {
+      head: [['Objekt', 'Monatlich', 'Anteil']],
       columnStyles: {
         1: { halign: 'right' },
         2: { halign: 'right' },
       },
-      head: [['Objekt', 'Monatlich', 'Anteil']],
       body: data.costs_by_object.map((row) => [
         row.name,
         money(row.amount),
         pct(Number(row.amount), objectTotal),
       ]),
-      margin: { left: 14, right: 14 },
     })
-    y = (doc.lastAutoTable?.finalY ?? y) + 7
   }
 
-  y = sectionTitle(doc, 'Fälligkeiten', y)
   if (data.upcoming_dues.length === 0) {
+    y = ensureBlockFits(doc, y, 11 + 8)
+    y = sectionTitle(doc, 'Fälligkeiten', y)
     y = emptyNote(doc, 'Keine Fälligkeiten hinterlegt.', y)
   } else {
-    autoTable(doc, {
-      startY: y,
-      theme: 'striped',
-      styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 1.6 },
-      headStyles: { fillColor: [47, 93, 140], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+    y = drawSectionTable(doc, y, 'Fälligkeiten', {
+      fontSize: 8.5,
+      cellPadding: 1.6,
+      afterGap: 6,
+      head: [['Name', 'Fälligkeit', 'Intervall', 'Monatsäquivalent']],
       columnStyles: {
         3: { halign: 'right' },
       },
-      head: [['Name', 'Fälligkeit', 'Intervall', 'Monatsäquivalent']],
       body: data.upcoming_dues.map((due) => [
         due.name,
         due.due_label || '–',
         INTERVAL_LABELS[due.payment_interval],
         money(due.amount),
       ]),
-      margin: { left: 14, right: 14 },
     })
-    y = (doc.lastAutoTable?.finalY ?? y) + 6
   }
 
   const pageCount = doc.getNumberOfPages()

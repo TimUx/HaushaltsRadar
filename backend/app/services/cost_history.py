@@ -232,11 +232,20 @@ def unsigned_contribution_in_month(
 
 
 def months_in_year(year: int, *, through: date | None = None) -> list[date]:
-    """Month starts for a calendar year, capped at `through` (inclusive)."""
+    """Month starts for a calendar year.
+
+    - Past years: full Jan–Dec
+    - Current year: capped at `through` (inclusive)
+    - Next calendar year: full Jan–Dec as a projection from known recurring costs
+      (and amortized one-time items from the current year)
+    - Further future years: empty
+    """
     through = through or date.today()
     end_month = 12
     if year == through.year:
         end_month = through.month
+    elif year == through.year + 1:
+        end_month = 12
     elif year > through.year:
         return []
     return [date(year, month, 1) for month in range(1, end_month + 1)]
