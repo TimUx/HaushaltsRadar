@@ -63,6 +63,48 @@ docker compose -f docker-compose.dev.yml up --build
 ```
 
 CI: Bei `release: published` baut `.github/workflows/release-ghcr.yml` Backend/Frontend multi-arch nach `ghcr.io/timux/haushaltsradar-*`. Manuell: Actions → *Release GHCR images* → *Run workflow*.
+
+## Test-CI
+
+`.github/workflows/ci.yml` läuft für jeden Pull Request, jeden Branch-Push
+(einschließlich `master`) und manuell über Actions → *CI* → *Run workflow*.
+Die Jobs benötigen keine Repository-Secrets und veröffentlichen keine Images:
+
+- **Backend tests (Python 3.12)**: Installation der gepinnten Abhängigkeiten,
+  `pip check` und alle Tests in `backend/tests` mit SQLite.
+- **Frontend lint and build (Node 22)**: reproduzierbare Installation mit
+  `npm ci`, Oxlint und Produktionsbuild inklusive TypeScript-Prüfung.
+- **PostgreSQL 16 migrations and API smoke test**: Migration einer frischen,
+  temporären PostgreSQL-Datenbank bis Alembic-Head, erneuter Migrationsaufruf
+  und echter App-Start ohne DB-Mocks. Der Test prüft Bootstrap, Anmeldung,
+  Rollen sowie das Anlegen, Lesen und Löschen eines einmaligen Einnahmepostens
+  mit PostgreSQL-Enums und Kostenverteilung.
+
+Die Laufzeiten entsprechen den Dockerfiles (Python 3.12 und Node 22).
+Backend- und PostgreSQL-Testberichte werden auch bei fehlgeschlagenen Tests als
+JUnit-Artefakte gespeichert. Bestehende Frontend-Checks sind Lint und Build;
+eine Browser-/Frontend-Unit-Test-Suite ist bisher nicht eingerichtet.
+
+Der PostgreSQL-Test ist lokal standardmäßig deaktiviert, da er echte Daten
+schreibt. Nur gegen eine separate, wegwerfbare Testdatenbank ausführen:
+
+```bash
+cd backend
+export POSTGRES_HOST=localhost POSTGRES_PORT=5432
+export POSTGRES_USER=haushaltsradar POSTGRES_PASSWORD=ci-only-password
+export POSTGRES_DB=haushaltsradar_test
+export SECRET_KEY=ci-only-signing-key-not-for-deployment
+export BOOTSTRAP_ADMIN_USERNAME=ci-admin BOOTSTRAP_ADMIN_PASSWORD=ci-admin-password
+export SEED_SAMPLE_DATA=false RUN_POSTGRES_TESTS=1
+.venv/bin/python -m alembic upgrade head
+.venv/bin/python -m alembic upgrade head
+.venv/bin/python -m pytest -q integration_tests
+```
+
+Diese CI ist unabhängig vom Publishing-Workflow. Zum Erzwingen grüner Checks
+vor Merges müssen die drei Jobs zusätzlich in den Branch-Regeln als
+erforderliche Statusprüfungen hinterlegt werden.
+
 ## Lokale Entwicklung
 
 ### Backend
